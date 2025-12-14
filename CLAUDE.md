@@ -84,15 +84,21 @@ PYTHONPATH=. pytest tests/ -v
 ```
 app/
 ├── api/                    # HTTP Layer (FastAPI)
+│   ├── processors/         # Job processing modules (DDE, chronology, reports)
+│   ├── routes/             # Route handlers (ere, chartvision, health)
+│   ├── middleware/         # Authentication
+│   └── storage/            # Job store
 ├── core/                   # Domain Logic (NO external deps)
 │   ├── ports/              # Abstract interfaces (LLMPort, PDFPort, StoragePort)
 │   ├── models/             # Domain models (Entry, ChartVision)
 │   ├── extraction/         # Extraction engine + components
-│   └── builders/           # Report builders
+│   ├── builders/           # Report builders
+│   └── parsers/            # DDE parsing and normalization
 ├── adapters/               # External Integrations
 │   ├── llm/bedrock.py      # AWS Bedrock (implements LLMPort)
 │   ├── pdf/pymupdf.py      # PyMuPDF (implements PDFPort)
-│   └── storage/redis.py    # Redis (implements StoragePort)
+│   ├── storage/redis.py    # Redis (implements StoragePort)
+│   └── export/             # PDF/Markdown export
 ├── config/                 # YAML prompts + settings
 └── workers/                # Background job handlers
 ```
@@ -112,6 +118,14 @@ app/
 - `app/core/extraction/recovery_handler.py` - Vision retry for sparse entries
 - `app/core/extraction/response_parser.py` - JSON parsing with truncation recovery
 - `app/core/extraction/text_chunker.py` - Paragraph-aware text splitting
+- `app/core/extraction/exhibit_normalizer.py` - Exhibit format normalization
+- `app/core/extraction/pdf_exhibit_extractor.py` - PDF bookmark extraction
+- `app/core/extraction/statistics.py` - Quality metrics calculation
+- `app/core/extraction/result_factory.py` - Error result creation
+
+### Core Parsers
+- `app/core/parsers/dde_parser.py` - DDE parsing from Section A exhibits
+- `app/core/parsers/dde_normalizer.py` - DDE result normalization for API
 
 ### Core Builders
 - `app/core/builders/chartvision_builder.py` - Report data assembly
@@ -124,9 +138,15 @@ app/
 - `app/adapters/storage/redis_adapter.py` - Redis job storage
 
 ### API Layer
-- `app/api/ere_api.py` - FastAPI endpoints (`/api/v1/chartvision/process`, `/api/v1/ere/health`)
-- `app/api/job_processors.py` - Background job processing
+- `app/api/ere_api.py` - FastAPI application factory
+- `app/api/job_processors.py` - Background job orchestration (~200 lines)
 - `app/api/schemas.py` - Pydantic request/response models
+
+### API Processors (extracted from job_processors.py)
+- `app/api/processors/dde_extractor.py` - DDE extraction from Section A
+- `app/api/processors/chronology_extractor.py` - Chronology extraction from F-sections
+- `app/api/processors/report_builder.py` - Report building and export
+- `app/api/processors/job_lifecycle.py` - Job state management and metrics
 
 ### Configuration
 - `app/config/prompts/extraction/text_extraction.yaml` - Text extraction prompts
@@ -159,12 +179,28 @@ API_KEY=ere-api-key-2024  # Default API key
 
 ## Test Summary
 
-- **229 tests passing**
-- Coverage: core/extraction/*, core/builders/*, core/ports/*, adapters/llm/*, adapters/pdf/*, adapters/storage/*
+- **250 tests passing**
+- Coverage: core/extraction/*, core/builders/*, core/ports/*, core/parsers/*, adapters/*, api/processors/*
 
 ## Performance
 
-- **126 chronology entries** from test PDF (Tull)
-- **168% parity** vs legacy engine
-- **293s processing** (32% faster than legacy)
+- **118 chronology entries** from test PDF (Tull) - 93.7% of 126 baseline
+- **737s processing** with vision fallback for scanned pages
 - **40K char chunking** prevents Bedrock timeouts
+- **DDE extraction**: 100% confidence with vision mode
+
+## Recent Refactoring (Dec 2024)
+
+### job_processors.py: 625 → 202 lines (68% reduction)
+Extracted to `app/api/processors/`:
+- `dde_extractor.py` (129 lines)
+- `chronology_extractor.py` (126 lines)
+- `report_builder.py` (191 lines)
+- `job_lifecycle.py` (133 lines)
+
+### extraction/utils.py: 427 → 50 lines (88% reduction)
+Extracted to focused modules:
+- `exhibit_normalizer.py` (96 lines)
+- `pdf_exhibit_extractor.py` (145 lines)
+- `statistics.py` (104 lines)
+- `result_factory.py` (42 lines)
