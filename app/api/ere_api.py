@@ -4,22 +4,16 @@ ERE-specific REST API for PDF Processing Pipeline
 Refactored with modular components following Clean Architecture
 """
 import asyncio
-import json
 import logging
 import time
-import uuid
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Optional
 
-import aiofiles
 import redis
 import uvicorn
-from fastapi import (BackgroundTasks, Depends, FastAPI, File, Form,
-                     HTTPException, Request, UploadFile)
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.responses import JSONResponse
 from prometheus_client import Counter, Gauge, Histogram
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -36,17 +30,12 @@ from app.core.ports.storage import JobStoragePort
 # Refactored API modules
 from app.api.storage import JobStore
 from app.api.routes.health import create_health_router
+from app.api.routes.ere import create_ere_router
+from app.api.routes.chartvision import create_chartvision_router
 from app.api.middleware.authentication import verify_token
 
-# Local API modules
-from app.api.schemas import (
-    EREProcessRequest,
-    EREProcessResponse,
-    EREStatusResponse,
-    EREResultResponse,
-    ErrorResponse,
-)
-from app.api.job_processors import process_ere_job, process_chartvision_job
+# Local API modules - schemas imported by route modules
+from app.api.schemas import ErrorResponse
 
 # Configure logging
 logging.basicConfig(
@@ -65,20 +54,6 @@ ACTIVE_JOBS = Gauge("ere_active_jobs", "Number of active processing jobs")
 
 # Rate limiting
 limiter = Limiter(key_func=get_remote_address)
-
-# Authentication
-security = HTTPBearer()
-
-
-async def get_current_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> str:
-    """Dependency wrapper for verify_token that chains security and verification.
-
-    This allows routes to use Depends(get_current_token) instead of manually
-    chaining Depends(security) and verify_token.
-    """
-    return await verify_token(credentials)
 
 
 class EREPipelineAPI:
@@ -193,344 +168,28 @@ class EREPipelineAPI:
         )
         self.app.include_router(health_router)
 
-        # ERE and ChartVision routes
-        self._setup_ere_routes()
-        self._setup_chartvision_routes()
+        # ERE routes
+        ere_router = create_ere_router(
+            active_jobs=self.active_jobs,
+            job_queue=self.job_queue,
+            chronology_engine=self.chronology_engine,
+            pdf_adapter=self.pdf_adapter,
+            verify_token_func=verify_token,
+            active_jobs_gauge=ACTIVE_JOBS
+        )
+        self.app.include_router(ere_router)
+
+        # ChartVision routes
+        chartvision_router = create_chartvision_router(
+            active_jobs=self.active_jobs,
+            job_queue=self.job_queue,
+            chronology_engine=self.chronology_engine,
+            pdf_adapter=self.pdf_adapter,
+            verify_token_func=verify_token
+        )
+        self.app.include_router(chartvision_router)
+
         self._setup_error_handlers()
-
-    def _setup_ere_routes(self):
-        """Setup ERE processing routes"""
-        @self.app.post("/api/v1/ere/process", response_model=EREProcessResponse)
-        @limiter.limit("10/minute")
-        async def process_ere_document(
-            request: Request,
-            background_tasks: BackgroundTasks,
-            file: UploadFile = File(...),
-            document_type: Optional[str] = Form(None),
-            priority: int = Form(1),
-            sections: Optional[str] = Form(None),
-            options: Optional[str] = Form("{}"),
-            token: str = Depends(get_current_token),
-        ):
-            if file.content_type != "application/pdf":
-                raise HTTPException(status_code=400, detail="Only PDF files are supported")
-
-            job_id = str(uuid.uuid4())
-
-            try:
-                upload_dir = Path("/tmp/ere_uploads")
-                upload_dir.mkdir(exist_ok=True)
-                file_path = upload_dir / f"{job_id}_{file.filename}"
-
-                async with aiofiles.open(file_path, "wb") as f:
-                    content = await file.read()
-                    await f.write(content)
-
-                processing_options = json.loads(options) if options else {}
-                sections_list = sections.split(",") if sections else None
-
-                job_data = {
-                    "job_id": job_id,
-                    "file_path": str(file_path),
-                    "filename": file.filename,
-                    "document_type": document_type,
-                    "priority": priority,
-                    "sections": sections_list,
-                    "options": processing_options,
-                    "created_at": datetime.now(),
-                    "status": "queued",
-                }
-
-                self.active_jobs[job_id] = job_data
-                ACTIVE_JOBS.set(len(self.active_jobs))
-
-                background_tasks.add_task(
-                    process_ere_job, job_id, self.active_jobs, self.chronology_engine
-                )
-
-                return EREProcessResponse(
-                    job_id=job_id,
-                    status="queued",
-                    message="Document processing started",
-                    estimated_completion=datetime.now() + timedelta(seconds=85),
-                )
-
-            except Exception as e:
-                logger.error(f"Error processing document: {str(e)}")
-                if job_id in self.active_jobs:
-                    del self.active_jobs[job_id]
-                    ACTIVE_JOBS.set(len(self.active_jobs))
-                raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
-
-        @self.app.get("/api/v1/ere/status/{job_id}", response_model=EREStatusResponse)
-        @limiter.limit("60/minute")
-        async def get_job_status(
-            request: Request, job_id: str, token: str = Depends(get_current_token)
-        ):
-            if job_id not in self.active_jobs:
-                raise HTTPException(status_code=404, detail="Job not found")
-
-            job_data = self.active_jobs[job_id]
-            estimated_remaining = None
-            if job_data["status"] == "processing":
-                elapsed = (datetime.now() - job_data.get("started_at", datetime.now())).total_seconds()
-                estimated_remaining = int(max(0, 85 - elapsed))
-
-            return EREStatusResponse(
-                job_id=job_id,
-                status=job_data["status"],
-                progress=job_data.get("progress", 0),
-                current_step=job_data.get("current_step"),
-                steps_completed=job_data.get("steps_completed", []),
-                estimated_remaining=estimated_remaining,
-                created_at=job_data["created_at"],
-                started_at=job_data.get("started_at"),
-                completed_at=job_data.get("completed_at"),
-                error=job_data.get("error"),
-            )
-
-        @self.app.get("/api/v1/ere/results/{job_id}", response_model=EREResultResponse)
-        @limiter.limit("30/minute")
-        async def get_job_results(
-            request: Request, job_id: str, token: str = Depends(get_current_token)
-        ):
-            if job_id not in self.active_jobs:
-                raise HTTPException(status_code=404, detail="Job not found")
-
-            job_data = self.active_jobs[job_id]
-            if job_data["status"] != "completed":
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Job not completed. Current status: {job_data['status']}",
-                )
-
-            processing_time = None
-            if job_data.get("started_at") and job_data.get("completed_at"):
-                processing_time = (job_data["completed_at"] - job_data["started_at"]).total_seconds()
-
-            return EREResultResponse(
-                job_id=job_id,
-                status=job_data["status"],
-                processing_time=processing_time,
-                results=job_data.get("results"),
-                metadata=job_data.get("metadata"),
-                error=job_data.get("error"),
-            )
-
-        @self.app.delete("/api/v1/ere/jobs/{job_id}")
-        @limiter.limit("10/minute")
-        async def cancel_job(request: Request, job_id: str, token: str = Depends(get_current_token)):
-            if job_id not in self.active_jobs:
-                raise HTTPException(status_code=404, detail="Job not found")
-
-            job_data = self.active_jobs[job_id]
-            if job_data["status"] in ["completed", "failed", "cancelled"]:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Cannot cancel job with status: {job_data['status']}",
-                )
-
-            job_data["status"] = "cancelled"
-            job_data["completed_at"] = datetime.now()
-            return {"message": "Job cancelled successfully"}
-
-        @self.app.get("/api/v1/ere/jobs")
-        @limiter.limit("20/minute")
-        async def list_jobs(
-            request: Request,
-            status: Optional[str] = None,
-            limit: int = 50,
-            token: str = Depends(get_current_token),
-        ):
-            jobs = []
-            for job_id, job_data in self.active_jobs.items():
-                if status and job_data.get("status") != status:
-                    continue
-
-                jobs.append({
-                    "job_id": job_id,
-                    "filename": job_data.get("filename", "unknown"),
-                    "status": job_data.get("status", "unknown"),
-                    "created_at": job_data.get("created_at"),
-                    "document_type": job_data.get("document_type"),
-                    "priority": job_data.get("priority", 1),
-                })
-
-                if len(jobs) >= limit:
-                    break
-
-            return {"jobs": jobs, "total": len(self.active_jobs)}
-
-    def _setup_chartvision_routes(self):
-        """Setup ChartVision processing routes"""
-        @self.app.post("/api/v1/chartvision/process")
-        @limiter.limit("10/minute")
-        async def process_chartvision(
-            request: Request,
-            background_tasks: BackgroundTasks,
-            file: UploadFile = File(...),
-            priority: int = Form(1),
-            options: Optional[str] = Form("{}"),
-            token: str = Depends(get_current_token),
-        ):
-            if not file.filename.lower().endswith(".pdf"):
-                raise HTTPException(status_code=400, detail="Only PDF files are accepted")
-
-            content_type = file.content_type or ""
-            if "pdf" not in content_type.lower() and not file.filename.lower().endswith(".pdf"):
-                raise HTTPException(status_code=400, detail="Only PDF files are accepted")
-
-            job_id = str(uuid.uuid4())
-
-            upload_dir = Path("/tmp/chartvision_uploads")
-            upload_dir.mkdir(exist_ok=True)
-            file_path = upload_dir / f"{job_id}_{file.filename}"
-
-            content = await file.read()
-            async with aiofiles.open(file_path, "wb") as f:
-                await f.write(content)
-
-            try:
-                opts = json.loads(options) if options else {}
-            except json.JSONDecodeError:
-                opts = {}
-
-            self.active_jobs[job_id] = {
-                "job_id": job_id,
-                "status": "queued",
-                "type": "chartvision",
-                "file_path": str(file_path),
-                "filename": file.filename,
-                "priority": priority,
-                "options": opts,
-                "created_at": datetime.now(),
-                "progress": 0.0,
-                "current_step": "Queued for processing",
-            }
-
-            background_tasks.add_task(process_chartvision_job, job_id, self.active_jobs)
-
-            return {
-                "job_id": job_id,
-                "status": "queued",
-                "message": "ChartVision processing started",
-                "report_url": f"/api/v1/chartvision/reports/{job_id}",
-                "estimated_completion": (datetime.now() + timedelta(minutes=5)).isoformat(),
-            }
-
-        @self.app.get("/api/v1/chartvision/reports/{job_id}")
-        @limiter.limit("30/minute")
-        async def get_chartvision_report(
-            request: Request,
-            job_id: str,
-            token: str = Depends(get_current_token),
-        ):
-            if job_id not in self.active_jobs:
-                raise HTTPException(status_code=404, detail="Job not found")
-
-            job = self.active_jobs[job_id]
-            if job.get("type") != "chartvision":
-                raise HTTPException(status_code=404, detail="Job not found")
-
-            if job["status"] != "completed":
-                return {
-                    "job_id": job_id,
-                    "status": job["status"],
-                    "progress": job.get("progress", 0),
-                    "current_step": job.get("current_step"),
-                }
-
-            result = job.get("result", {"error": "No result available"})
-            return {
-                "status": "completed",
-                "job_id": job_id,
-                **result,
-            }
-
-        @self.app.get("/api/v1/chartvision/reports/{job_id}/pdf")
-        @limiter.limit("10/minute")
-        async def get_chartvision_pdf(
-            request: Request,
-            job_id: str,
-            token: str = Depends(get_current_token),
-        ):
-            from fastapi.responses import FileResponse
-
-            if job_id not in self.active_jobs:
-                raise HTTPException(status_code=404, detail="Job not found")
-
-            job = self.active_jobs[job_id]
-            if job.get("type") != "chartvision":
-                raise HTTPException(status_code=404, detail="Job not found")
-
-            if job["status"] != "completed":
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Job not completed. Status: {job['status']}"
-                )
-
-            pdf_path = job.get("pdf_path")
-            if pdf_path and Path(pdf_path).exists():
-                return FileResponse(
-                    path=pdf_path,
-                    media_type="application/pdf",
-                    filename=f"chartvision_report_{job_id[:8]}.pdf",
-                )
-
-            raise HTTPException(
-                status_code=501,
-                detail="PDF not available. Enable pdf_output in job options."
-            )
-
-        @self.app.get("/api/v1/ere/pdf/{job_id}")
-        @limiter.limit("10/minute")
-        async def get_ere_pdf(
-            request: Request,
-            job_id: str,
-            token: str = Depends(get_current_token),
-        ):
-            """Download PDF report for ERE job (generated via Gotenberg)."""
-            from fastapi.responses import FileResponse
-            import json
-
-            # Load job from persisted JSON file
-            project_root = Path(__file__).parent.parent.parent
-            job_file = project_root / "results" / f"job_{job_id}.json"
-
-            if not job_file.exists():
-                raise HTTPException(status_code=404, detail="Job not found")
-
-            with open(job_file) as f:
-                job = json.load(f)
-
-            if job.get("status") != "completed":
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Job not completed. Status: {job.get('status')}"
-                )
-
-            # Check results for pdf_path
-            results = job.get("results", {})
-            pdf_path = results.get("pdf_path")
-
-            if pdf_path:
-                # Handle both relative and absolute paths
-                pdf_file = Path(pdf_path)
-                if not pdf_file.is_absolute():
-                    # Relative paths are relative to project root
-                    pdf_file = project_root / pdf_path
-
-                if pdf_file.exists():
-                    return FileResponse(
-                        path=str(pdf_file),
-                        media_type="application/pdf",
-                        filename=f"chronology_{job_id[:8]}.pdf",
-                    )
-
-            raise HTTPException(
-                status_code=501,
-                detail="PDF not available. Gotenberg may not be running."
-            )
 
     def _setup_error_handlers(self):
         """Setup error handlers"""
