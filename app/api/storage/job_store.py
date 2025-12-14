@@ -35,6 +35,18 @@ class JobStore:
         self._jobs: Dict[str, Any] = {}
         self._load_persisted_jobs()
 
+    def _validate_job_id(self, job_id: str) -> None:
+        """Validate job_id to prevent path traversal attacks.
+
+        Args:
+            job_id: Job ID to validate
+
+        Raises:
+            ValueError: If job_id contains path traversal characters
+        """
+        if not job_id or '/' in job_id or '\\' in job_id or job_id.startswith('.'):
+            raise ValueError(f"Invalid job_id: {job_id}")
+
     def _load_persisted_jobs(self) -> None:
         """Load completed jobs from disk on startup."""
         for job_file in self.storage_dir.glob("job_*.json"):
@@ -53,6 +65,8 @@ class JobStore:
 
     def _persist_job(self, job_id: str) -> None:
         """Persist a completed job to disk."""
+        self._validate_job_id(job_id)
+
         job = self._jobs.get(job_id)
         if not job or job.get("status") not in ["completed", "failed"]:
             return
@@ -92,6 +106,8 @@ class JobStore:
 
     def __delitem__(self, job_id: str) -> None:
         """Delete job from memory and disk."""
+        self._validate_job_id(job_id)
+
         if job_id in self._jobs:
             del self._jobs[job_id]
             # Also remove from disk

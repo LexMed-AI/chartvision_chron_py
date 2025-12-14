@@ -83,3 +83,21 @@ class TestJobStore:
         del store[job_id]
         assert job_id not in store
         assert not job_file.exists()
+
+    def test_job_store_ignores_corrupted_files(self, temp_storage):
+        """Should skip corrupted JSON files during load"""
+        (temp_storage / "job_bad.json").write_text("{invalid json")
+        store = JobStore(storage_dir=str(temp_storage))
+        assert len(store) == 0  # Should initialize despite bad file
+
+    def test_job_store_does_not_persist_queued_jobs(self, temp_storage):
+        """Should NOT persist queued/running jobs"""
+        store = JobStore(storage_dir=str(temp_storage))
+        store["queued-job"] = {"job_id": "queued-job", "status": "queued"}
+        assert not (temp_storage / "job_queued-job.json").exists()
+
+    def test_job_store_rejects_invalid_job_id(self, temp_storage):
+        """Should reject job_ids with path traversal characters"""
+        store = JobStore(storage_dir=str(temp_storage))
+        with pytest.raises(ValueError, match="Invalid job_id"):
+            store["../malicious"] = {"job_id": "../malicious", "status": "completed"}
