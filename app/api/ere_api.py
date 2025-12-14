@@ -1,133 +1,42 @@
 #!/usr/bin/env python3
 """
 ERE-specific REST API for PDF Processing Pipeline
-Production-ready API with proper error handling, authentication, and monitoring
+Refactored with modular components following Clean Architecture
 """
 import asyncio
 import json
 import logging
-import os
 import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import aiofiles
-
-
-class JobStore:
-    """Persistent job storage with file-based backup.
-
-    Keeps jobs in memory for fast access while persisting completed jobs
-    to disk for recovery after server restarts.
-    """
-
-    def __init__(self, storage_dir: Optional[str] = None):
-        self.storage_dir = Path(storage_dir or os.environ.get(
-            "JOB_STORAGE_DIR",
-            Path(__file__).parent.parent.parent / "results"
-        ))
-        self.storage_dir.mkdir(parents=True, exist_ok=True)
-        self._jobs: Dict[str, Any] = {}
-        self._load_persisted_jobs()
-
-    def _load_persisted_jobs(self) -> None:
-        """Load completed jobs from disk on startup."""
-        for job_file in self.storage_dir.glob("job_*.json"):
-            try:
-                with open(job_file) as f:
-                    job_data = json.load(f)
-                    job_id = job_data.get("job_id")
-                    if job_id:
-                        # Convert date strings back to datetime objects
-                        for field in ["created_at", "started_at", "completed_at"]:
-                            if job_data.get(field):
-                                job_data[field] = datetime.fromisoformat(job_data[field])
-                        self._jobs[job_id] = job_data
-            except Exception as e:
-                logging.getLogger(__name__).warning(f"Failed to load {job_file}: {e}")
-
-    def _persist_job(self, job_id: str) -> None:
-        """Persist a completed job to disk."""
-        job = self._jobs.get(job_id)
-        if not job or job.get("status") not in ["completed", "failed"]:
-            return
-
-        job_file = self.storage_dir / f"job_{job_id}.json"
-
-        # Create serializable copy
-        job_copy = {}
-        for key, value in job.items():
-            if isinstance(value, datetime):
-                job_copy[key] = value.isoformat()
-            elif isinstance(value, Path):
-                job_copy[key] = str(value)
-            else:
-                job_copy[key] = value
-
-        try:
-            with open(job_file, "w") as f:
-                json.dump(job_copy, f, indent=2, default=str)
-        except Exception as e:
-            logging.getLogger(__name__).error(f"Failed to persist job {job_id}: {e}")
-
-    def __contains__(self, job_id: str) -> bool:
-        return job_id in self._jobs
-
-    def __getitem__(self, job_id: str) -> Dict[str, Any]:
-        return self._jobs[job_id]
-
-    def __setitem__(self, job_id: str, job_data: Dict[str, Any]) -> None:
-        self._jobs[job_id] = job_data
-        # Auto-persist completed/failed jobs
-        if job_data.get("status") in ["completed", "failed"]:
-            self._persist_job(job_id)
-
-    def __delitem__(self, job_id: str) -> None:
-        if job_id in self._jobs:
-            del self._jobs[job_id]
-            # Also remove from disk
-            job_file = self.storage_dir / f"job_{job_id}.json"
-            if job_file.exists():
-                job_file.unlink()
-
-    def __len__(self) -> int:
-        return len(self._jobs)
-
-    def __iter__(self):
-        return iter(self._jobs)
-
-    def items(self):
-        return self._jobs.items()
-
-    def get(self, job_id: str, default=None):
-        return self._jobs.get(job_id, default)
-
-    def persist(self, job_id: str) -> None:
-        """Manually trigger persistence for a job."""
-        self._persist_job(job_id)
 import redis
 import uvicorn
 from fastapi import (BackgroundTasks, Depends, FastAPI, File, Form,
                      HTTPException, Request, UploadFile)
-
-from app.adapters.storage import RedisAdapter
-from app.core.ports.storage import JobStoragePort
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from prometheus_client import Counter, Gauge, Histogram, generate_latest
+from prometheus_client import Counter, Gauge, Histogram
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
 # Core engine imports
-from app.core.builders import ChartVisionBuilder
 from app.core.extraction import ChronologyEngine
 from app.adapters.llm import BedrockAdapter
 from app.adapters.pdf import PyMuPDFAdapter
+from app.adapters.storage import RedisAdapter
+from app.core.ports.storage import JobStoragePort
+
+# Refactored API modules
+from app.api.storage import JobStore
+from app.api.routes.health import create_health_router
+from app.api.middleware.authentication import verify_token
 
 # Local API modules
 from app.api.schemas import (
@@ -135,7 +44,6 @@ from app.api.schemas import (
     EREProcessResponse,
     EREStatusResponse,
     EREResultResponse,
-    HealthResponse,
     ErrorResponse,
 )
 from app.api.job_processors import process_ere_job, process_chartvision_job
@@ -162,26 +70,58 @@ limiter = Limiter(key_func=get_remote_address)
 security = HTTPBearer()
 
 
-async def verify_token(
-        credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Verify API token"""
-    if credentials.credentials != "ere-api-key-2024":
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return credentials.credentials
+async def get_current_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> str:
+    """Dependency wrapper for verify_token that chains security and verification.
+
+    This allows routes to use Depends(get_current_token) instead of manually
+    chaining Depends(security) and verify_token.
+    """
+    return await verify_token(credentials)
 
 
 class EREPipelineAPI:
-    """ERE-specific API using core engine directly"""
+    """ERE-specific API using core engine with dependency injection"""
 
-    def __init__(self, config_path: Optional[str] = None):
-        # Core engine components
-        self.pdf_adapter = PyMuPDFAdapter()
-        self.chronology_engine = ChronologyEngine(llm=BedrockAdapter())
+    def __init__(
+        self,
+        pdf_adapter=None,
+        llm_adapter=None,
+        job_storage: Optional[JobStoragePort] = None,
+        config_path: Optional[str] = None
+    ):
+        """Initialize API with dependency injection.
 
+        Args:
+            pdf_adapter: PDF processing adapter (default: PyMuPDFAdapter)
+            llm_adapter: LLM adapter (default: BedrockAdapter)
+            job_storage: Job storage implementation (default: RedisAdapter)
+            config_path: Optional config file path
+        """
+        # Use dependency injection with sensible defaults
+        self.pdf_adapter = pdf_adapter or PyMuPDFAdapter()
+        llm = llm_adapter or BedrockAdapter()
+        self.chronology_engine = ChronologyEngine(llm=llm)
+
+        # Job storage
+        if job_storage is None:
+            _redis_client = redis.Redis(
+                host="localhost", port=6379, db=0, decode_responses=False
+            )
+            job_storage = RedisAdapter(_redis_client)
+            self.redis_client = _redis_client  # Backward compat
+        else:
+            self.redis_client = None
+
+        self.job_storage = job_storage
+        self.active_jobs = JobStore()
+        self.job_queue = asyncio.Queue()
+
+        # Start time for uptime
+        self.start_time = time.time()
+
+        # Create FastAPI app
         self.app = FastAPI(
             title="ERE PDF Processing API",
             description="Production API for processing ERE PDF documents",
@@ -190,27 +130,10 @@ class EREPipelineAPI:
             redoc_url="/redoc",
         )
 
-        # Redis for caching and session management
-        _redis_client = redis.Redis(
-            host="localhost", port=6379, db=0, decode_responses=False
-        )
-        self.job_storage: JobStoragePort = RedisAdapter(_redis_client)
-        # Keep redis_client for backwards compat during migration
-        self.redis_client = _redis_client
-
-        # Job tracking with file persistence
-        self.active_jobs = JobStore()
-        self.job_queue = asyncio.Queue()
-
-        # Setup middleware and routes
+        # Setup
         self._setup_middleware()
         self._setup_routes()
-
-        # Background tasks
         self.background_tasks = set()
-
-        # Start time for uptime calculation
-        self.start_time = time.time()
 
     def _setup_middleware(self):
         """Setup API middleware"""
@@ -251,15 +174,9 @@ class EREPipelineAPI:
             return response
 
     def _setup_routes(self):
-        """Setup API routes"""
-        self._setup_base_routes()
-        self._setup_ere_routes()
-        self._setup_chartvision_routes()
-        self._setup_error_handlers()
-
-    def _setup_base_routes(self):
-        """Setup base/utility routes"""
-        @self.app.get("/", response_model=Dict[str, str])
+        """Setup API routes using extracted modules"""
+        # Root endpoint
+        @self.app.get("/")
         async def root():
             return {
                 "service": "ERE PDF Processing API",
@@ -268,44 +185,18 @@ class EREPipelineAPI:
                 "docs": "/docs",
             }
 
-        @self.app.get("/api/v1/ere/health", response_model=HealthResponse)
-        @limiter.limit("30/minute")
-        async def health_check(request: Request):
-            return HealthResponse(
-                status="healthy",
-                timestamp=datetime.now(),
-                version="1.0.0",
-                uptime=time.time() - self.start_time,
-                system_info={
-                    "active_jobs": len(self.active_jobs),
-                    "queue_size": self.job_queue.qsize(),
-                    "memory_usage": 0,
-                    "cpu_usage": 0,
-                },
-                pipeline_status={
-                    "components": 3,
-                    "status": "running",
-                },
-            )
+        # Include health router
+        health_router = create_health_router(
+            start_time=self.start_time,
+            active_jobs_getter=lambda: len(self.active_jobs),
+            job_queue_getter=lambda: self.job_queue.qsize(),
+        )
+        self.app.include_router(health_router)
 
-        @self.app.get("/metrics")
-        async def get_metrics():
-            return Response(generate_latest(), media_type="text/plain")
-
-        @self.app.get("/api/v1/ere/supported-types")
-        async def get_supported_types():
-            return {
-                "document_types": [
-                    {"type": "DDE", "description": "Detailed Earnings Query", "section": "A", "priority": "critical"},
-                    {"type": "SSA-831", "description": "Disability Report", "section": "A", "priority": "high"},
-                    {"type": "SSA-1696", "description": "Appointment of Representative", "section": "B", "priority": "medium"},
-                    {"type": "HA-507", "description": "Request for Hearing", "section": "B", "priority": "high"},
-                    {"type": "SSA-3368", "description": "Disability Report - Adult", "section": "E", "priority": "critical"},
-                    {"type": "SSA-3369", "description": "Work History Report", "section": "E", "priority": "high"},
-                    {"type": "SSA-3373", "description": "Function Report - Adult", "section": "E", "priority": "high"},
-                    {"type": "MEDICAL_RECORD", "description": "Medical Records", "section": "F", "priority": "critical"},
-                ]
-            }
+        # ERE and ChartVision routes
+        self._setup_ere_routes()
+        self._setup_chartvision_routes()
+        self._setup_error_handlers()
 
     def _setup_ere_routes(self):
         """Setup ERE processing routes"""
@@ -319,7 +210,7 @@ class EREPipelineAPI:
             priority: int = Form(1),
             sections: Optional[str] = Form(None),
             options: Optional[str] = Form("{}"),
-            token: str = Depends(verify_token),
+            token: str = Depends(get_current_token),
         ):
             if file.content_type != "application/pdf":
                 raise HTTPException(status_code=400, detail="Only PDF files are supported")
@@ -374,7 +265,7 @@ class EREPipelineAPI:
         @self.app.get("/api/v1/ere/status/{job_id}", response_model=EREStatusResponse)
         @limiter.limit("60/minute")
         async def get_job_status(
-            request: Request, job_id: str, token: str = Depends(verify_token)
+            request: Request, job_id: str, token: str = Depends(get_current_token)
         ):
             if job_id not in self.active_jobs:
                 raise HTTPException(status_code=404, detail="Job not found")
@@ -401,7 +292,7 @@ class EREPipelineAPI:
         @self.app.get("/api/v1/ere/results/{job_id}", response_model=EREResultResponse)
         @limiter.limit("30/minute")
         async def get_job_results(
-            request: Request, job_id: str, token: str = Depends(verify_token)
+            request: Request, job_id: str, token: str = Depends(get_current_token)
         ):
             if job_id not in self.active_jobs:
                 raise HTTPException(status_code=404, detail="Job not found")
@@ -428,7 +319,7 @@ class EREPipelineAPI:
 
         @self.app.delete("/api/v1/ere/jobs/{job_id}")
         @limiter.limit("10/minute")
-        async def cancel_job(request: Request, job_id: str, token: str = Depends(verify_token)):
+        async def cancel_job(request: Request, job_id: str, token: str = Depends(get_current_token)):
             if job_id not in self.active_jobs:
                 raise HTTPException(status_code=404, detail="Job not found")
 
@@ -449,7 +340,7 @@ class EREPipelineAPI:
             request: Request,
             status: Optional[str] = None,
             limit: int = 50,
-            token: str = Depends(verify_token),
+            token: str = Depends(get_current_token),
         ):
             jobs = []
             for job_id, job_data in self.active_jobs.items():
@@ -480,7 +371,7 @@ class EREPipelineAPI:
             file: UploadFile = File(...),
             priority: int = Form(1),
             options: Optional[str] = Form("{}"),
-            token: str = Depends(verify_token),
+            token: str = Depends(get_current_token),
         ):
             if not file.filename.lower().endswith(".pdf"):
                 raise HTTPException(status_code=400, detail="Only PDF files are accepted")
@@ -532,7 +423,7 @@ class EREPipelineAPI:
         async def get_chartvision_report(
             request: Request,
             job_id: str,
-            token: str = Depends(verify_token),
+            token: str = Depends(get_current_token),
         ):
             if job_id not in self.active_jobs:
                 raise HTTPException(status_code=404, detail="Job not found")
@@ -561,7 +452,7 @@ class EREPipelineAPI:
         async def get_chartvision_pdf(
             request: Request,
             job_id: str,
-            token: str = Depends(verify_token),
+            token: str = Depends(get_current_token),
         ):
             from fastapi.responses import FileResponse
 
@@ -596,7 +487,7 @@ class EREPipelineAPI:
         async def get_ere_pdf(
             request: Request,
             job_id: str,
-            token: str = Depends(verify_token),
+            token: str = Depends(get_current_token),
         ):
             """Download PDF report for ERE job (generated via Gotenberg)."""
             from fastapi.responses import FileResponse
