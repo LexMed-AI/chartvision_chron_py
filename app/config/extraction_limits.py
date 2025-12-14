@@ -12,8 +12,8 @@ MAX_EXHIBITS_PER_JOB = 50
 MAX_PAGES_PER_EXHIBIT = 50
 """Maximum pages to extract per exhibit (chunked if exceeded)"""
 
-MAX_IMAGES_PER_EXHIBIT = 20
-"""Maximum scanned page images per exhibit (prevents OOM errors)"""
+MAX_IMAGES_PER_EXHIBIT = 50
+"""Maximum scanned page images per exhibit (VisionExtractor batches internally)"""
 
 # Text chunking limits
 DEFAULT_CHUNK_SIZE = 40_000
