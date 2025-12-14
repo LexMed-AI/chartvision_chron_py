@@ -11,6 +11,8 @@ from typing import Any, Dict, List
 
 from prometheus_client import Histogram
 
+from app.config.extraction_limits import MAX_EXHIBITS_PER_JOB, MAX_PAGES_PER_EXHIBIT
+
 logger = logging.getLogger(__name__)
 
 # Prometheus metrics
@@ -237,7 +239,7 @@ async def process_ere_job(
             from app.core.extraction import ChronologyEngine
             from app.adapters.llm import BedrockAdapter
 
-            f_exhibits = extract_f_exhibits_from_pdf(file_path, max_exhibits=50, max_pages_per_exhibit=30)
+            f_exhibits = extract_f_exhibits_from_pdf(file_path, max_exhibits=MAX_EXHIBITS_PER_JOB, max_pages_per_exhibit=MAX_PAGES_PER_EXHIBIT)
             logger.info(f"Extracted {len(f_exhibits)} F-section exhibits")
 
             if f_exhibits:
@@ -464,11 +466,11 @@ async def process_chartvision_job(
             from app.core.extraction import ChronologyEngine
             from app.adapters.llm import BedrockAdapter
 
-            # Extract F-exhibits (limit to 50 for reasonable processing time)
+            # Extract F-exhibits (limit to prevent timeout)
             f_exhibits = extract_f_exhibits_from_pdf(
                 file_path,
-                max_exhibits=50,
-                max_pages_per_exhibit=30
+                max_exhibits=MAX_EXHIBITS_PER_JOB,
+                max_pages_per_exhibit=MAX_PAGES_PER_EXHIBIT
             )
             logger.info(f"Extracted {len(f_exhibits)} F-section exhibits")
 

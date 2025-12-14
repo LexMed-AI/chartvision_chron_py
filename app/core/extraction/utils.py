@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 logger = logging.getLogger(__name__)
 
 # Memory limits for image extraction
-MAX_IMAGES_PER_EXHIBIT = 20  # Prevent memory exhaustion from large scanned exhibits
+from app.config.extraction_limits import MAX_IMAGES_PER_EXHIBIT
 
 
 def normalize_exhibits(
