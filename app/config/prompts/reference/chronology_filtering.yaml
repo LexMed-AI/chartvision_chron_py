@@ -1,0 +1,257 @@
+# Medical Chronology Exhibit Filtering Configuration
+# Defines which exhibits to include/exclude when building medical chronologies
+#
+# Purpose: Optimize processing by focusing on medically-relevant documents
+# and excluding administrative/procedural exhibits that don't contribute
+# to the medical timeline.
+
+version: "1.0.0"
+name: "Medical Chronology Filtering"
+
+# Section-level filtering rules
+sections:
+  A:
+    name: "Payment Documents/Decisions"
+    include: true
+    strategy: "latest_n"  # Only process latest N exhibits
+    latest_n: 2  # Last 2 DDEs contain most recent determinations
+    categories:
+      include:
+        - state_agency_opinions  # RFC assessments, PRTF ratings
+      exclude: []
+    rationale: "Latest DDEs contain current RFC/PRTF assessments needed for chronology"
+
+  B:
+    name: "Jurisdictional Documents"
+    include: false
+    strategy: "exclude_all"
+    rationale: "Administrative/procedural - no medical content for chronology"
+
+  D:
+    name: "Earnings/Work Activity"
+    include: false
+    strategy: "exclude_all"
+    rationale: "Financial records - no medical content for chronology"
+
+  E:
+    name: "Disability/Vocational Reports"
+    include: true
+    strategy: "category_filter"  # Include/exclude by category
+    categories:
+      include:
+        # High-value claimant-reported information
+        - third_party_statements      # Family/friend observations
+        - vocational_assessments      # VE opinions
+        - va_disability_ratings       # VA determinations (often detailed)
+        - ltd_reports                 # Long-term disability evaluations
+        - workers_comp_decisions      # WC determinations
+
+        # Condition-specific questionnaires (detailed symptom data)
+        - headache_questionnaires
+        - headache_diaries
+        - seizure_questionnaires
+        - seizure_diaries
+
+        # Professional evaluations
+        - independent_medical_exams   # IMEs
+        - functional_capacity_evaluations  # FCEs
+        - court_remand_orders         # May contain medical directives
+
+        # Educational (for mental health context)
+        - educational_records
+
+        # SSA disability forms (rich symptom/function data)
+        - ssa_3368  # Disability Report - Adult
+        - ssa_3369  # Disability Report - Field Office
+        - ssa_3373  # Function Report - Adult
+        - ssa_3441  # Reconsideration Report
+
+      exclude:
+        # Low-value administrative forms
+        - hearing_notices
+        - appeal_forms
+        - me_interrogatories          # Usually just questions, not answers
+        - ve_interrogatories
+        - post_hearing_briefs         # Legal arguments, not medical
+        - prior_alj_decisions         # Summarize rather than extract
+        - appeals_council_remands
+
+        # Redundant if we have source records
+        - claimant_medication_lists   # Available in F section
+        - claimant_work_history       # Available in D section
+
+    rationale: "E-section contains valuable claimant-reported symptoms and third-party observations"
+
+  F:
+    name: "Medical Evidence"
+    include: true
+    strategy: "include_all"  # Process all F-section exhibits
+    categories:
+      include:
+        # Opinion evidence (highest value)
+        - treating_physician_opinions
+        - treating_specialist_opinions
+        - consultative_exam_opinions
+        - mental_health_provider_opinions
+        - nurse_practitioner_opinions
+        - state_agency_opinions
+        - medical_expert_opinions
+
+        # Objective evidence
+        - imaging_studies             # MRI, CT, X-ray
+        - laboratory_results          # Blood work, urinalysis
+
+        # Treatment records
+        - treatment_records
+        - hospital_records
+        - specialist_treatment_notes
+        - primary_care_notes
+        - urgent_care_records
+        - telehealth_encounters
+
+      exclude:
+        # Non-substantive medical records
+        - unfulfilled_medical_requests  # Requests for records that were never obtained
+        - duplicate_medical_records     # Exact copies already processed elsewhere
+        - billing_records               # Financial/billing data, no clinical value
+    rationale: "F-section is core medical evidence - include all except non-substantive records"
+
+# Document type detection patterns
+# Used to categorize documents within sections
+detection_patterns:
+  # A Section patterns
+  state_agency_opinions:
+    patterns:
+      - "RFC Assessment"
+      - "Physical Residual Functional Capacity"
+      - "Mental Residual Functional Capacity"
+      - "PRTF"
+      - "Psychiatric Review Technique"
+
+  # E Section patterns
+  ssa_3368:
+    patterns:
+      - "SSA-3368"
+      - "DISABILITY REPORT - ADULT"
+      - "Form SSA-3368"
+
+  ssa_3369:
+    patterns:
+      - "SSA-3369"
+      - "DISABILITY REPORT - FIELD OFFICE"
+
+  ssa_3373:
+    patterns:
+      - "SSA-3373"
+      - "FUNCTION REPORT - ADULT"
+      - "ACTIVITIES OF DAILY LIVING"
+
+  ssa_3441:
+    patterns:
+      - "SSA-3441"
+      - "RECONSIDERATION DISABILITY REPORT"
+
+  third_party_statements:
+    patterns:
+      - "THIRD PARTY"
+      - "SSA-3380"
+      - "FUNCTION REPORT - ADULT - THIRD PARTY"
+
+  va_disability_ratings:
+    patterns:
+      - "VA RATING"
+      - "DEPARTMENT OF VETERANS AFFAIRS"
+      - "SERVICE-CONNECTED"
+
+  headache_questionnaires:
+    patterns:
+      - "HEADACHE QUESTIONNAIRE"
+      - "MIGRAINE"
+      - "HA-4631"
+
+  seizure_questionnaires:
+    patterns:
+      - "SEIZURE QUESTIONNAIRE"
+      - "EPILEPSY"
+      - "HA-4632"
+
+  functional_capacity_evaluations:
+    patterns:
+      - "FUNCTIONAL CAPACITY EVALUATION"
+      - "FCE REPORT"
+
+  independent_medical_exams:
+    patterns:
+      - "INDEPENDENT MEDICAL EXAMINATION"
+      - "IME REPORT"
+
+  # F Section patterns
+  treating_physician_opinions:
+    patterns:
+      - "MEDICAL SOURCE STATEMENT"
+      - "RFC QUESTIONNAIRE"
+      - "TREATING PHYSICIAN"
+
+  imaging_studies:
+    patterns:
+      - "MRI"
+      - "CT SCAN"
+      - "X-RAY"
+      - "RADIOLOGY"
+      - "IMAGING"
+
+  laboratory_results:
+    patterns:
+      - "LABORATORY"
+      - "LAB RESULTS"
+      - "BLOOD WORK"
+      - "URINALYSIS"
+
+  # F Section exclusion patterns
+  unfulfilled_medical_requests:
+    patterns:
+      - "REQUEST FOR MEDICAL RECORDS"
+      - "RECORDS NOT RECEIVED"
+      - "UNABLE TO OBTAIN"
+      - "NO RESPONSE FROM PROVIDER"
+      - "REQUEST SENT"
+      - "PENDING RECORDS"
+
+  duplicate_medical_records:
+    patterns:
+      - "DUPLICATE"
+      - "COPY OF"
+      - "PREVIOUSLY SUBMITTED"
+      - "DUPLICATE EXHIBIT"
+
+  billing_records:
+    patterns:
+      - "BILLING"
+      - "INVOICE"
+      - "STATEMENT OF CHARGES"
+      - "ACCOUNT SUMMARY"
+      - "ITEMIZED CHARGES"
+      - "INSURANCE CLAIM"
+      - "EOB"
+      - "EXPLANATION OF BENEFITS"
+
+# Processing optimization settings
+optimization:
+  # Skip duplicate content detection
+  dedupe_threshold: 0.95  # Similarity threshold for duplicate detection
+
+  # Page limits for large exhibits
+  max_pages_per_exhibit: 50  # Segment larger exhibits
+  segment_overlap_pages: 5
+
+  # Priority ordering (process high-value first)
+  section_priority:
+    - F  # Medical evidence first
+    - E  # Then disability reports
+    - A  # Then decisions (for RFC context)
+
+# Metrics to track
+metrics:
+  track_filtered_counts: true
+  track_processing_time_by_section: true
+  track_extraction_quality_by_category: true

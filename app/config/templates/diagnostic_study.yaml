@@ -1,0 +1,255 @@
+# Diagnostic Study Extraction Template
+# For: EKG, EMG, NCV, EEG, Sleep Studies, Pulmonary Function, Cardiac Tests
+#
+# Version: 1.0.0
+
+visit_type: "diagnostic_study"
+description: "Non-imaging diagnostic studies including electrodiagnostic and functional tests"
+
+# User prompt specific to diagnostic studies
+user_prompt: |
+  Parse the following diagnostic study reports and extract all tests.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH STUDY:**
+  - Date of study
+  - Interpreting physician
+  - Facility name
+  - Study type (EKG, EMG, NCV, EEG, PFT, Echo, Stress Test, etc.)
+  - Clinical indication
+  - Technical quality
+  - Detailed findings
+  - Interpretation/conclusion
+  - Recommendations if any
+
+  **OUTPUT:** Return JSON array following the diagnostic_study schema.
+
+# Fields specific to diagnostic studies
+fields:
+  study_type:
+    type: enum
+    required: true
+    label: "Study"
+    values:
+      - "EKG/ECG"
+      - "EMG"
+      - "Nerve Conduction Study"
+      - "EMG/NCV"
+      - "EEG"
+      - "Echocardiogram"
+      - "Stress Test"
+      - "Holter Monitor"
+      - "Event Monitor"
+      - "Pulmonary Function Test"
+      - "Sleep Study/PSG"
+      - "Cardiac Catheterization"
+      - "Doppler/Vascular Study"
+      - "Audiogram"
+      - "VNG/ENG"
+      - "Urodynamic Study"
+      - "Other"
+    description: "Type of diagnostic study"
+
+  indication:
+    type: text
+    required: false
+    label: "Indication"
+    description: "Clinical reason for study"
+
+  technical_quality:
+    type: string
+    required: false
+    label: "Quality"
+    description: "Technical quality of the study"
+
+  findings:
+    type: text
+    required: true
+    label: "Findings"
+    description: "Detailed study findings"
+
+  interpretation:
+    type: text
+    required: true
+    label: "Interpretation"
+    description: "Overall interpretation and conclusion"
+
+  comparison:
+    type: string
+    required: false
+    label: "Comparison"
+    description: "Prior studies compared, if any"
+
+  measurements:
+    type: text
+    required: false
+    label: "Measurements"
+    description: "Key quantitative measurements"
+
+  abnormalities:
+    type: array
+    items: string
+    required: false
+    label: "Abnormalities"
+    description: "Specific abnormalities identified"
+
+  recommendations:
+    type: text
+    required: false
+    label: "Recommendations"
+    description: "Follow-up recommendations"
+
+# Output labels for occurrence_treatment column
+output_labels: ["Study", "Indication", "Findings", "Interpretation"]
+
+# Formatting example
+output_example: |
+  Study: EMG/NCV bilateral lower extremities
+  Indication: Radiculopathy, numbness and weakness in legs
+  Findings: Prolonged F-waves L5-S1, reduced recruitment L5 myotome, fibrillations gastrocnemius
+  Interpretation: Electrodiagnostic evidence of L5-S1 radiculopathy, moderate severity
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      EMG/NERVE CONDUCTION STUDY REPORT
+      Date: 03/22/2022
+      Provider: James Mitchell, MD (Neurology)
+      Facility: University Neurology Associates
+
+      CLINICAL INDICATION: Low back pain with bilateral leg pain, numbness,
+      and weakness. Rule out radiculopathy vs polyneuropathy.
+
+      NERVE CONDUCTION STUDIES:
+      Motor Studies:
+      - Peroneal nerve: Normal DML, amplitude, CV bilaterally
+      - Tibial nerve: Normal DML, amplitude, CV bilaterally
+      - F-waves: Prolonged bilateral L5-S1
+
+      Sensory Studies:
+      - Sural nerve: Normal amplitude and CV bilaterally
+      - Superficial peroneal: Normal bilaterally
+
+      NEEDLE EMG:
+      - L4 paraspinals: Normal
+      - L5 paraspinals: 2+ fibrillations, positive waves
+      - S1 paraspinals: 1+ fibrillations
+      - Tibialis anterior: Reduced recruitment, large MUPs
+      - Gastrocnemius: 1+ fibrillations, reduced recruitment
+      - Vastus medialis: Normal
+      - Biceps femoris: Mildly reduced recruitment
+
+      INTERPRETATION:
+      Electrodiagnostic evidence of bilateral L5-S1 radiculopathy, active
+      and chronic, moderate severity. No evidence of peripheral polyneuropathy.
+
+      RECOMMENDATIONS: Correlate with imaging. Consider neurosurgical
+      consultation given EMG findings of active denervation.
+    output:
+      date: "03/22/2022"
+      provider: "James Mitchell, MD"
+      facility: "University Neurology Associates"
+      exhibit_reference: "6F@234"
+      page_range: "234-238"
+      visit_type: "diagnostic_study"
+      study_type: "EMG/NCV"
+      indication: "Low back pain with bilateral leg pain, numbness, and weakness. Rule out radiculopathy vs polyneuropathy."
+      findings: "NCS: Prolonged F-waves L5-S1 bilaterally, otherwise normal motor and sensory studies. EMG: L5 paraspinals with 2+ fibrillations and positive waves, S1 paraspinals with 1+ fibrillations. Tibialis anterior and gastrocnemius show reduced recruitment with fibrillations in gastrocnemius."
+      interpretation: "Electrodiagnostic evidence of bilateral L5-S1 radiculopathy, active and chronic, moderate severity. No evidence of peripheral polyneuropathy."
+      abnormalities:
+        - "Bilateral L5-S1 radiculopathy"
+        - "Active denervation L5-S1 paraspinals"
+        - "Chronic denervation tibialis anterior"
+      recommendations: "Correlate with imaging. Consider neurosurgical consultation given EMG findings of active denervation."
+
+  - input: |
+      ELECTROCARDIOGRAM (EKG)
+      Date: 07/14/2021
+      Facility: Cardiology Associates
+      Ordering Provider: Thomas Brown, MD
+      Interpreting Physician: Nancy Williams, MD
+
+      INDICATION: Chest pain, palpitations
+
+      TECHNICAL: Standard 12-lead EKG, technically adequate
+
+      RATE: 78 bpm
+      RHYTHM: Normal sinus rhythm
+      AXIS: Normal (-30 to +90 degrees)
+      INTERVALS: PR 168ms, QRS 88ms, QTc 412ms
+
+      FINDINGS:
+      - Normal sinus rhythm
+      - Normal axis
+      - No ST-T wave abnormalities
+      - No evidence of prior MI
+      - No chamber enlargement
+
+      INTERPRETATION: Normal EKG
+    output:
+      date: "07/14/2021"
+      provider: "Nancy Williams, MD"
+      facility: "Cardiology Associates"
+      exhibit_reference: "3F@89"
+      page_range: "89"
+      visit_type: "diagnostic_study"
+      study_type: "EKG/ECG"
+      indication: "Chest pain, palpitations"
+      technical_quality: "Technically adequate"
+      measurements: "Rate 78 bpm, PR 168ms, QRS 88ms, QTc 412ms, Normal axis"
+      findings: "Normal sinus rhythm. Normal axis. No ST-T wave abnormalities. No evidence of prior MI. No chamber enlargement."
+      interpretation: "Normal EKG"
+
+  - input: |
+      POLYSOMNOGRAPHY (SLEEP STUDY) REPORT
+      Date: 11/08/2021
+      Provider: Sleep Medicine Center
+      Interpreting: Patricia Lee, MD (Sleep Medicine)
+
+      INDICATION: Excessive daytime sleepiness, witnessed apneas, loud snoring
+
+      STUDY TYPE: Diagnostic polysomnogram with split-night CPAP titration
+
+      DIAGNOSTIC PORTION (11pm - 2am):
+      Total Sleep Time: 165 minutes
+      Sleep Efficiency: 78%
+      Sleep Latency: 12 minutes
+      REM Latency: 95 minutes
+      AHI: 58 events/hour (severe)
+      Lowest O2 Sat: 74%
+      Time SpO2 <90%: 35 minutes
+      Predominant events: Obstructive apneas
+
+      CPAP TITRATION (2am - 6am):
+      Optimal pressure: 12 cm H2O
+      Residual AHI on CPAP: 3.2 events/hour
+      Lowest O2 on CPAP: 91%
+
+      INTERPRETATION:
+      1. Severe obstructive sleep apnea (AHI 58)
+      2. Significant oxygen desaturations to 74%
+      3. Successfully titrated to CPAP 12 cm H2O with resolution of
+         respiratory events
+
+      RECOMMENDATIONS:
+      - CPAP therapy at 12 cm H2O
+      - Follow-up in 4-6 weeks to assess compliance and symptom improvement
+      - Weight loss counseling
+    output:
+      date: "11/08/2021"
+      provider: "Patricia Lee, MD"
+      facility: "Sleep Medicine Center"
+      exhibit_reference: "9F@312"
+      page_range: "312-320"
+      visit_type: "diagnostic_study"
+      study_type: "Sleep Study/PSG"
+      indication: "Excessive daytime sleepiness, witnessed apneas, loud snoring"
+      measurements: "AHI 58 events/hour, lowest O2 74%, sleep efficiency 78%. CPAP titration: optimal pressure 12 cm H2O, residual AHI 3.2"
+      findings: "Severe obstructive sleep apnea with AHI of 58 events/hour. Significant oxygen desaturations to 74% with 35 minutes SpO2 <90%. Predominantly obstructive apneas. Split-night CPAP titration successful at 12 cm H2O."
+      interpretation: "Severe obstructive sleep apnea (AHI 58) with significant oxygen desaturations. Successfully titrated to CPAP 12 cm H2O with resolution of respiratory events."
+      abnormalities:
+        - "Severe obstructive sleep apnea (AHI 58)"
+        - "Significant oxygen desaturations to 74%"
+      recommendations: "CPAP therapy at 12 cm H2O. Follow-up in 4-6 weeks. Weight loss counseling."

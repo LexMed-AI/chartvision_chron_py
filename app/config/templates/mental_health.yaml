@@ -1,0 +1,227 @@
+# Mental Health Extraction Template
+# For: Psychiatric Evaluations, Therapy Notes, Psychological Testing
+#
+# Version: 1.0.0
+
+visit_type: "mental_health"
+description: "Psychiatric evaluations, therapy sessions, and psychological assessments"
+
+# User prompt specific to mental health records
+user_prompt: |
+  Parse the following mental health/psychiatric records and extract all encounters.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH ENCOUNTER:**
+  - Date of service
+  - Provider name and credentials (MD, PhD, LCSW, LPC, etc.)
+  - Facility name
+  - Visit type (Initial Eval, Follow-up, Therapy Session, Psych Testing)
+  - Chief complaint/presenting problem
+  - Mental status exam findings
+  - Diagnoses (with DSM codes if listed)
+  - GAF/functional assessment scores
+  - Medications prescribed/adjusted
+  - Treatment plan
+
+  **OUTPUT:** Return JSON array following the mental_health schema.
+
+# Fields specific to mental health records
+fields:
+  encounter_type:
+    type: enum
+    required: true
+    label: "Visit Type"
+    values:
+      - "Psychiatric Evaluation"
+      - "Psychiatric Follow-up"
+      - "Therapy Session"
+      - "Psychological Testing"
+      - "Crisis Intervention"
+      - "Medication Management"
+    description: "Type of mental health encounter"
+
+  presenting_problem:
+    type: text
+    required: true
+    label: "Presenting Problem"
+    description: "Chief complaint or reason for visit"
+
+  mental_status_exam:
+    type: object
+    required: false
+    label: "MSE"
+    description: "Mental status examination findings"
+    fields:
+      appearance: string
+      behavior: string
+      mood: string
+      affect: string
+      thought_process: string
+      thought_content: string
+      perception: string
+      cognition: string
+      insight_judgment: string
+
+  mse_summary:
+    type: text
+    required: false
+    label: "MSE Summary"
+    description: "Condensed MSE for display"
+
+  diagnoses:
+    type: array
+    items: string
+    required: true
+    label: "Dx"
+    description: "Psychiatric diagnoses"
+
+  gaf_score:
+    type: integer
+    required: false
+    label: "GAF"
+    description: "Global Assessment of Functioning score (if documented)"
+
+  functional_assessment:
+    type: text
+    required: false
+    label: "Functioning"
+    description: "Functional assessment/limitations"
+
+  medications:
+    type: array
+    items: string
+    required: false
+    label: "Medications"
+    description: "Psychiatric medications prescribed or adjusted"
+
+  suicide_risk:
+    type: string
+    required: false
+    label: "SI/Risk"
+    description: "Suicidal ideation and risk assessment"
+
+  treatment_plan:
+    type: text
+    required: false
+    label: "Plan"
+    description: "Treatment plan and recommendations"
+
+# Output labels for occurrence_treatment column
+output_labels: ["Visit Type", "Presenting Problem", "MSE", "Dx", "Medications", "Plan"]
+
+# Formatting example
+output_example: |
+  Visit Type: Psychiatric Evaluation
+  Presenting Problem: Depression, anxiety, insomnia for 6 months
+  MSE: Depressed mood, constricted affect, no SI/HI, insight fair
+  Dx: Major depressive disorder, recurrent, moderate; GAD
+  Medications: Started Zoloft 50mg daily
+  Plan: F/U 4 weeks, refer to therapy
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      PSYCHIATRIC EVALUATION
+      Date: 02/14/2022
+      Provider: Amanda Foster, MD (Psychiatrist)
+      Facility: Behavioral Health Associates
+
+      CHIEF COMPLAINT: "I can't stop feeling sad and anxious"
+
+      HPI: 45 y/o female with 6-month history of depressed mood, anhedonia,
+      insomnia, poor concentration, and excessive worry. Reports difficulty
+      functioning at work. Denies SI/HI. No prior psychiatric history.
+      No substance abuse.
+
+      MENTAL STATUS EXAM:
+      Appearance: Casually dressed, poor hygiene
+      Behavior: Cooperative, poor eye contact
+      Mood: "Depressed"
+      Affect: Constricted, tearful at times
+      Thought Process: Linear, goal-directed
+      Thought Content: No SI/HI, no delusions
+      Perception: No hallucinations
+      Cognition: Alert, oriented x4, concentration impaired
+      Insight/Judgment: Fair/Fair
+
+      GAF: 52
+
+      DIAGNOSES:
+      1. Major depressive disorder, recurrent, moderate (F33.1)
+      2. Generalized anxiety disorder (F41.1)
+
+      PLAN:
+      - Start sertraline 50mg daily
+      - Refer to psychotherapy
+      - Return in 4 weeks
+      - Crisis line provided
+    output:
+      date: "02/14/2022"
+      provider: "Amanda Foster, MD"
+      facility: "Behavioral Health Associates"
+      exhibit_reference: "9F@15"
+      page_range: "15-22"
+      visit_type: "mental_health"
+      encounter_type: "Psychiatric Evaluation"
+      presenting_problem: "6-month history of depressed mood, anhedonia, insomnia, poor concentration, and excessive worry. Difficulty functioning at work."
+      mental_status_exam:
+        appearance: "Casually dressed, poor hygiene"
+        behavior: "Cooperative, poor eye contact"
+        mood: "Depressed"
+        affect: "Constricted, tearful at times"
+        thought_process: "Linear, goal-directed"
+        thought_content: "No SI/HI, no delusions"
+        perception: "No hallucinations"
+        cognition: "Alert, oriented x4, concentration impaired"
+        insight_judgment: "Fair/Fair"
+      mse_summary: "Depressed mood, constricted affect, tearful. No SI/HI. Concentration impaired. Insight fair."
+      diagnoses:
+        - "Major depressive disorder, recurrent, moderate (F33.1)"
+        - "Generalized anxiety disorder (F41.1)"
+      gaf_score: 52
+      suicide_risk: "Denies SI/HI. Crisis line provided."
+      medications:
+        - "Sertraline 50mg daily (new)"
+      treatment_plan: "Start sertraline 50mg daily. Refer to psychotherapy. Return in 4 weeks."
+
+  - input: |
+      THERAPY PROGRESS NOTE
+      Date: 03/28/2022
+      Provider: Jennifer Mills, LCSW
+      Facility: Counseling Center
+
+      SESSION TYPE: Individual therapy - 50 minutes
+
+      PRESENTING ISSUES: Follow-up for depression/anxiety. Reports medication
+      helping somewhat but still having bad days. Sleep improved. Returned
+      to work part-time this week.
+
+      INTERVENTIONS: CBT techniques for negative thought patterns. Reviewed
+      cognitive distortions. Practiced thought challenging. Discussed
+      gradual return to activities.
+
+      MENTAL STATUS: Mood improved from last session. Affect brighter.
+      Denies SI.
+
+      ASSESSMENT: Patient showing gradual improvement. Engaging well in
+      therapy. Good insight into thought patterns.
+
+      PLAN: Continue weekly therapy. Continue CBT focus. Encourage
+      continued medication compliance.
+    output:
+      date: "03/28/2022"
+      provider: "Jennifer Mills, LCSW"
+      facility: "Counseling Center"
+      exhibit_reference: "9F@45"
+      page_range: "45-46"
+      visit_type: "mental_health"
+      encounter_type: "Therapy Session"
+      presenting_problem: "Follow-up for depression/anxiety. Reports medication helping somewhat but still having bad days. Sleep improved. Returned to work part-time."
+      mse_summary: "Mood improved from last session. Affect brighter. Denies SI."
+      functional_assessment: "Returned to work part-time this week. Sleep improved."
+      diagnoses:
+        - "Depression"
+        - "Anxiety"
+      treatment_plan: "Continue weekly therapy. Continue CBT focus. Encourage continued medication compliance."

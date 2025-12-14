@@ -1,0 +1,273 @@
+# DDE (Disability Determination Explanation) Parsing Prompt Template
+# Used for extracting Section A claimant/case information from SSA disability files
+#
+# The DDE document contains administrative case data, not medical records.
+# This is typically found in Section A of the ERE file.
+
+schema_version: "1.0.0"
+description: "Prompts for extracting DDE/Section A case metadata from SSA disability files"
+
+# =============================================================================
+# LLM CONFIGURATION
+# =============================================================================
+
+llm_config:
+  model_preference: "haiku"
+  max_tokens: 4000
+  temperature: 0.05
+  timeout: 120.0
+
+# =============================================================================
+# SYSTEM PROMPT - TEXT EXTRACTION
+# =============================================================================
+
+system_prompt_text: |
+  You are an expert at parsing SSA (Social Security Administration) disability
+  case documents. Your task is to extract structured case metadata from DDE
+  (Disability Determination Explanation) documents.
+
+  EXTRACTION PRINCIPLES:
+  1. Extract exact values as they appear in the document
+  2. Use null for fields not found in the document
+  3. Parse dates into YYYY-MM-DD format when possible
+  4. Preserve full names with proper capitalization
+  5. Return valid JSON only - no explanatory text
+
+  EXPECTED FIELDS:
+
+  CASE HEADER (case_metadata):
+  - claimant_name: Full name of the disability claimant
+  - date_of_birth: Claimant's DOB (YYYY-MM-DD)
+  - ssn_last_four: Last 4 digits of SSN (if visible)
+  - claim_type: Type of claim (DIB, SSI, CDB, etc.)
+  - alleged_onset_date: Date disability allegedly began (YYYY-MM-DD)
+  - date_last_insured: DLI for Title II claims (YYYY-MM-DD)
+  - protective_filing_date: Date claim was filed (YYYY-MM-DD)
+  - age_category: Vocational age category (Younger Individual, Closely Approaching Advanced Age, Advanced Age, Closely Approaching Retirement Age)
+  - hearing_date: Date of ALJ hearing if applicable (YYYY-MM-DD)
+  - alj_name: Name of Administrative Law Judge
+  - representative: Claimant's representative/attorney name
+
+  MEDICAL FINDINGS (medical_findings):
+  - primary_allegations: List of alleged impairments from claimant
+  - medically_determinable_impairments: List of MDIs established by evidence
+  - rfc_assessment: RFC findings (exertional level, limitations)
+  - medical_consultant: Name/credentials of medical consultant
+  - clinical_findings_summary: Summary of clinical findings from evidence review
+  - treatment_history: Summary of treatment received
+
+  CHRONOLOGY ENTRIES (chronology_entries):
+  Extract any specific medical events mentioned with dates, including:
+  - Consultative examinations (CE)
+  - Medical consultant reviews
+  - Key treatment dates referenced
+  - Hospitalizations mentioned
+  Format: [{date, provider, facility, event_type, findings, source}]
+
+# =============================================================================
+# SYSTEM PROMPT - VISION EXTRACTION (for scanned documents)
+# =============================================================================
+
+system_prompt_vision: |
+  You are an expert at reading scanned SSA disability documents. Extract case
+  metadata from the DDE (Disability Determination Explanation) document images.
+
+  Look for:
+  - Case header information (claimant name, SSN, DOB)
+  - Claim type and filing dates
+  - Alleged onset date and date last insured
+  - Age category (Younger Individual, Closely Approaching Advanced Age, Advanced Age, etc.)
+  - ALJ and representative information
+  - List of alleged impairments
+
+  Return a JSON object with the extracted fields. Use null for fields not
+  visible in the images. Return valid JSON only.
+
+# =============================================================================
+# USER PROMPT TEMPLATE
+# =============================================================================
+
+user_prompt: |
+  Extract DDE case metadata from the following document content.
+
+  **DOCUMENT CONTENT:**
+  {medical_content}
+
+  **REQUIRED OUTPUT:**
+  Return a JSON object with these fields:
+  ```json
+  {
+    "case_metadata": {
+      "claimant_name": "string or null",
+      "date_of_birth": "YYYY-MM-DD or null",
+      "ssn_last_four": "string or null",
+      "claim_type": "string or null",
+      "alleged_onset_date": "YYYY-MM-DD or null",
+      "date_last_insured": "YYYY-MM-DD or null",
+      "protective_filing_date": "YYYY-MM-DD or null",
+      "age_category": "Younger Individual | Closely Approaching Advanced Age | Advanced Age | Closely Approaching Retirement Age | null",
+      "hearing_date": "YYYY-MM-DD or null",
+      "alj_name": "string or null",
+      "representative": "string or null"
+    },
+    "medical_findings": {
+      "primary_allegations": ["list of claimant's alleged impairments"],
+      "medically_determinable_impairments": ["list of MDIs established by medical evidence"],
+      "rfc_assessment": {
+        "exertional_level": "Sedentary | Light | Medium | Heavy | Very Heavy | null",
+        "stand_walk_hours": "string or null",
+        "sit_hours": "string or null",
+        "lift_carry_occasional": "string or null",
+        "lift_carry_frequent": "string or null",
+        "postural_limitations": "string or null",
+        "manipulative_limitations": "string or null",
+        "environmental_limitations": "string or null"
+      },
+      "medical_consultant": "string or null",
+      "clinical_findings_summary": "string or null",
+      "treatment_history": "string or null"
+    },
+    "chronology_entries": [
+      {
+        "date": "YYYY-MM-DD",
+        "provider": "string",
+        "facility": "string",
+        "event_type": "CE | Medical Consultant Review | Hospitalization | Treatment",
+        "findings": "string",
+        "source": "DDE Section A"
+      }
+    ],
+    "prior_applications": ["list of prior application dates/outcomes"]
+  }
+  ```
+
+  Return valid JSON only. No explanatory text before or after the JSON.
+
+# =============================================================================
+# USER PROMPT - VISION (for image-based extraction)
+# =============================================================================
+
+user_prompt_vision: |
+  Extract DDE case metadata from these scanned document images.
+
+  Look for Section A header information containing:
+  - Claimant identification (name, DOB, SSN)
+  - Claim details (type, dates, ALJ)
+  - Representative information
+  - Alleged impairments
+
+  Return a JSON object with the extracted data. Use null for fields not visible.
+
+# =============================================================================
+# OUTPUT SCHEMA
+# =============================================================================
+
+output_schema:
+  type: object
+  properties:
+    case_metadata:
+      type: object
+      properties:
+        claimant_name:
+          type: string
+          description: "Full name of the disability claimant"
+        date_of_birth:
+          type: string
+          format: date
+          description: "Claimant DOB in YYYY-MM-DD format"
+        ssn_last_four:
+          type: string
+          description: "Last 4 digits of SSN"
+        claim_type:
+          type: string
+          enum: ["DIB", "SSI", "CDB", "DWB", "DIB/SSI"]
+          description: "Type of disability claim"
+        alleged_onset_date:
+          type: string
+          format: date
+          description: "Alleged disability onset date"
+        date_last_insured:
+          type: string
+          format: date
+          description: "Date last insured for Title II claims"
+        protective_filing_date:
+          type: string
+          format: date
+          description: "Date the claim was filed"
+        age_category:
+          type: string
+          enum: ["Younger Individual", "Closely Approaching Advanced Age", "Advanced Age", "Closely Approaching Retirement Age"]
+          description: "Vocational age category for grid rule analysis"
+        hearing_date:
+          type: string
+          format: date
+          description: "ALJ hearing date if applicable"
+        alj_name:
+          type: string
+          description: "Administrative Law Judge name"
+        representative:
+          type: string
+          description: "Claimant representative/attorney"
+    primary_allegations:
+      type: array
+      items:
+        type: string
+      description: "List of alleged impairments"
+    prior_applications:
+      type: array
+      items:
+        type: string
+      description: "Prior disability application history"
+
+# =============================================================================
+# EXAMPLES
+# =============================================================================
+
+examples:
+  - description: "Complete DDE extraction"
+    output: |
+      {
+        "case_metadata": {
+          "claimant_name": "John Michael Smith",
+          "date_of_birth": "1975-03-15",
+          "ssn_last_four": "1234",
+          "claim_type": "DIB",
+          "alleged_onset_date": "2020-06-01",
+          "date_last_insured": "2025-12-31",
+          "protective_filing_date": "2021-02-15",
+          "hearing_date": "2023-05-10",
+          "alj_name": "Hon. Mary Johnson",
+          "representative": "ABC Law Firm"
+        },
+        "primary_allegations": [
+          "Degenerative disc disease",
+          "Major depressive disorder",
+          "Chronic pain syndrome"
+        ],
+        "prior_applications": [
+          "2018-04: Denied at initial level",
+          "2019-01: Denied at reconsideration"
+        ]
+      }
+
+  - description: "Partial extraction (missing fields)"
+    output: |
+      {
+        "case_metadata": {
+          "claimant_name": "Jane Doe",
+          "date_of_birth": "1980-11-22",
+          "ssn_last_four": null,
+          "claim_type": "SSI",
+          "alleged_onset_date": "2022-01-15",
+          "date_last_insured": null,
+          "protective_filing_date": "2022-03-01",
+          "hearing_date": null,
+          "alj_name": null,
+          "representative": null
+        },
+        "primary_allegations": [
+          "Bipolar disorder",
+          "Anxiety"
+        ],
+        "prior_applications": []
+      }

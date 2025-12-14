@@ -1,0 +1,189 @@
+{
+  "pipeline_name": "ERE Multi-Model Pipeline",
+  "version": "3.0.0",
+  "description": "Multi-model configuration for ERE PDF processing using Claude 4.5 Haiku (fast extraction), Claude 4.5 Sonnet (complex reasoning), and Gemini Pro 2.5 (massive context)",
+
+  "models": {
+    "haiku": {
+      "name": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "provider": "bedrock",
+      "role": "medical_data_extraction",
+      "max_tokens": 65536,
+      "temperature": 0.1,
+      "timeout": 120.0,
+      "max_retries": 3,
+      "context_window": 200000,
+      "cost_per_1k_input": 0.001,
+      "cost_per_1k_output": 0.005,
+      "system_prompt": "You are a medical document analysis expert specializing in extracting structured data from medical records for legal case preparation. Your role is to accurately extract diagnoses, treatments, medications, procedures, providers, and temporal information from medical exhibits. Focus on precision, completeness, and structured output."
+    },
+    "sonnet": {
+      "name": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "provider": "bedrock",
+      "role": "medical_reasoning_and_chronology",
+      "max_tokens": 65536,
+      "temperature": 0.2,
+      "timeout": 180.0,
+      "max_retries": 3,
+      "context_window": 200000,
+      "cost_per_1k_input": 0.003,
+      "cost_per_1k_output": 0.015,
+      "system_prompt": "You are a senior medical consultant specializing in disability case analysis for attorneys. You have extensive experience in Social Security disability law, medical record review, and case valuation. Your analysis must be thorough, legally-focused, and provide actionable insights for attorneys building disability cases."
+    },
+    "gemini": {
+      "name": "gemini-2.5-pro",
+      "provider": "google",
+      "role": "large_context_analysis",
+      "max_tokens": 2097152,
+      "temperature": 0.1,
+      "timeout": 300.0,
+      "max_retries": 3,
+      "context_window": 2097152,
+      "cost_per_1k_input": 0.00125,
+      "cost_per_1k_output": 0.005,
+      "system_prompt": "You are an expert medical document analyst with the ability to process extremely large volumes of medical records. You excel at maintaining context across thousands of pages while identifying patterns, inconsistencies, and critical medical events spanning multiple years."
+    }
+  },
+  
+  "processing": {
+    "max_parallel_exhibits": 5,
+    "enable_async_processing": true,
+    "enable_caching": true,
+    "cache_directory": ".cache/pipeline",
+    "batch_size": 3,
+    "max_workers": 4,
+    "enable_streaming": false
+  },
+  
+  "exhibit_preprocessing": {
+    "whole_exhibit_threshold": 50,
+    "segment_size": 30,
+    "segment_overlap": 5,
+    "validate_boundaries": true,
+    "extract_metadata": true,
+    "enable_smart_segmentation": true
+  },
+  
+  "cost_optimization": {
+    "cost_budget_limit": 100.0,
+    "enable_cost_monitoring": true,
+    "cost_alert_threshold": 80.0,
+    "enable_token_optimization": true,
+    "prefer_haiku_for_extraction": true,
+    "use_sonnet_only_for_reasoning": true
+  },
+  
+  "performance": {
+    "enable_performance_profiling": true,
+    "enable_parallel_processing": true,
+    "max_processing_time": 3600,
+    "enable_progress_tracking": true,
+    "log_detailed_metrics": true
+  },
+  
+  "output": {
+    "formats": ["json", "html"],
+    "output_directory": "output",
+    "include_raw_data": false,
+    "include_processing_metadata": true,
+    "include_cost_breakdown": true,
+    "generate_summary_report": true,
+    "generate_timeline_visualization": false
+  },
+  
+  "quality": {
+    "minimum_confidence_threshold": 0.7,
+    "enable_quality_validation": true,
+    "enable_consistency_checks": true,
+    "enable_completeness_scoring": true,
+    "enable_accuracy_validation": true,
+    "require_manual_review_threshold": 0.5
+  },
+  
+  "attorney_features": {
+    "enable_legal_insights": true,
+    "enable_case_valuation": true,
+    "enable_gap_analysis": true,
+    "enable_onset_date_analysis": true,
+    "enable_work_capacity_assessment": true,
+    "enable_treatment_effectiveness_analysis": true,
+    "enable_provider_consistency_checks": true,
+    "generate_attorney_recommendations": true
+  },
+  
+  "data_extraction": {
+    "extract_diagnoses": true,
+    "extract_treatments": true,
+    "extract_medications": true,
+    "extract_procedures": true,
+    "extract_providers": true,
+    "extract_timeline_events": true,
+    "extract_functional_assessments": true,
+    "extract_work_restrictions": true,
+    "standardize_medical_terms": true,
+    "validate_medical_codes": false
+  },
+  
+  "chronology_analysis": {
+    "enable_disability_progression_tracking": true,
+    "enable_treatment_continuity_analysis": true,
+    "enable_provider_pattern_analysis": true,
+    "enable_medication_compliance_tracking": true,
+    "enable_functional_decline_assessment": true,
+    "generate_legal_timeline": true,
+    "identify_evidence_gaps": true,
+    "assess_case_strengths_weaknesses": true
+  },
+  
+  "error_handling": {
+    "max_retries_per_exhibit": 3,
+    "enable_graceful_degradation": true,
+    "continue_on_exhibit_failure": true,
+    "log_all_errors": true,
+    "enable_error_recovery": true,
+    "fallback_to_simpler_processing": true
+  },
+  
+  "monitoring": {
+    "enable_real_time_monitoring": false,
+    "enable_resource_monitoring": true,
+    "enable_cost_tracking": true,
+    "enable_performance_tracking": true,
+    "enable_quality_tracking": true,
+    "log_level": "INFO",
+    "save_processing_logs": true
+  },
+  
+  "security": {
+    "enable_input_validation": true,
+    "sanitize_file_paths": true,
+    "validate_pdf_integrity": true,
+    "enable_secure_output": true,
+    "redact_sensitive_info": false
+  },
+  
+  "sample_cases": {
+    "ere_full_sandefur": {
+      "case_number": "ERE_FULL_SANDEFUR_001",
+      "client_name": "Carla Sandefur",
+      "description": "Complete ERE case with multiple medical exhibits",
+      "pdf_path": "samples/pdf_samples/ere_full_sandefur.pdf",
+      "expected_exhibits": 25,
+      "primary_impairments": [
+        "Chronic lower back pain",
+        "Cervical spine dysfunction", 
+        "Depression and anxiety"
+      ],
+      "case_type": "Social Security Disability",
+      "complexity": "high"
+    }
+  },
+  
+  "testing": {
+    "enable_test_mode": false,
+    "use_mock_llm_responses": false,
+    "enable_performance_benchmarks": false,
+    "save_test_results": true,
+    "compare_with_baseline": false
+  }
+}

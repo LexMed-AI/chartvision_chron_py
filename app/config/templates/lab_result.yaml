@@ -1,0 +1,175 @@
+# Lab Result Extraction Template
+# For: Blood work, Urinalysis, Pathology, Cultures
+#
+# Version: 1.0.0
+
+visit_type: "lab_result"
+description: "Laboratory test results and pathology reports"
+
+# User prompt specific to lab results
+user_prompt: |
+  Parse the following laboratory results and extract all test findings.
+
+  **INSTRUCTIONS FOR MARKDOWN TABLES:**
+  - If you see "--- TABLES ---" sections, they contain high-fidelity lab data.
+  - Iterate through each table row to extract Test Name, Result, and Reference Range.
+  - The column associations in Markdown tables are AUTHORITATIVE - trust them.
+  - Do not hallucinate associations if the table structure provides clear mappings.
+  - Example: | Hemoglobin | 12.5 | 13-17 | means Hemoglobin=12.5, Range=13-17.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH LAB PANEL/RESULT:**
+  - Date of collection
+  - Ordering provider (if listed)
+  - Lab facility
+  - Test names
+  - Result values with units
+  - Reference ranges
+  - Abnormal flags (High, Low, Critical)
+  - Clinical significance (if noted by provider)
+
+  **NOTE:** Group related tests from the same date/panel together as one entry.
+
+  **OUTPUT:** Return JSON array following the lab_result schema.
+
+# Fields specific to lab results
+fields:
+  test_panel:
+    type: string
+    required: false
+    label: "Panel"
+    description: "Name of test panel if applicable (CBC, CMP, Lipid Panel, etc.)"
+
+  tests:
+    type: array
+    items:
+      test_name: string
+      result_value: string
+      reference_range: string
+      abnormal_flag: enum[High, Low, Critical, Normal]
+    required: true
+    label: "Tests"
+    description: "Individual test results"
+
+  summary:
+    type: text
+    required: true
+    label: "Summary"
+    description: "Condensed summary of key findings for chronology display"
+
+  clinical_significance:
+    type: text
+    required: false
+    label: "Significance"
+    description: "Clinical interpretation if provided in source"
+
+  ordering_diagnosis:
+    type: string
+    required: false
+    label: "Ordering Dx"
+    description: "Diagnosis or reason for ordering"
+
+# Output labels for occurrence_treatment column
+output_labels: ["Panel", "Results", "Abnormal", "Significance"]
+
+# Formatting example
+output_example: |
+  Panel: Comprehensive Metabolic Panel
+  Results: Glucose 142 mg/dL (H), Creatinine 1.4 mg/dL (H), eGFR 52
+  Abnormal: Elevated glucose, reduced kidney function
+  Significance: Suggests poorly controlled diabetes with early CKD
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      LABORATORY RESULTS
+      Collection Date: 03/10/2022
+      Ordering Provider: Michael Brown, MD
+      Lab: Quest Diagnostics
+
+      COMPREHENSIVE METABOLIC PANEL
+      Glucose: 142 mg/dL (Reference: 70-100) HIGH
+      BUN: 22 mg/dL (Reference: 7-20) HIGH
+      Creatinine: 1.4 mg/dL (Reference: 0.7-1.3) HIGH
+      eGFR: 52 mL/min/1.73m2 (Reference: >60) LOW
+      Sodium: 138 mEq/L (Reference: 136-145)
+      Potassium: 4.2 mEq/L (Reference: 3.5-5.0)
+
+      HEMOGLOBIN A1C
+      HbA1c: 8.2% (Reference: 4.0-5.6%) HIGH
+    output:
+      date: "03/10/2022"
+      provider: "Michael Brown, MD"
+      facility: "Quest Diagnostics"
+      exhibit_reference: "3F@42"
+      page_range: "42-43"
+      visit_type: "lab_result"
+      test_panel: "CMP, HbA1c"
+      tests:
+        - test_name: "Glucose"
+          result_value: "142 mg/dL"
+          reference_range: "70-100"
+          abnormal_flag: "High"
+        - test_name: "BUN"
+          result_value: "22 mg/dL"
+          reference_range: "7-20"
+          abnormal_flag: "High"
+        - test_name: "Creatinine"
+          result_value: "1.4 mg/dL"
+          reference_range: "0.7-1.3"
+          abnormal_flag: "High"
+        - test_name: "eGFR"
+          result_value: "52 mL/min/1.73m2"
+          reference_range: ">60"
+          abnormal_flag: "Low"
+        - test_name: "HbA1c"
+          result_value: "8.2%"
+          reference_range: "4.0-5.6%"
+          abnormal_flag: "High"
+      summary: "Glucose 142 (H), Creatinine 1.4 (H), eGFR 52 (L), HbA1c 8.2% (H)"
+      clinical_significance: "Elevated HbA1c indicates poor glycemic control; reduced eGFR suggests Stage 3a CKD"
+
+  - input: |
+      CBC WITH DIFFERENTIAL
+      Date: 01/15/2023
+      Facility: Memorial Hospital Lab
+
+      WBC: 12.5 x10^9/L (Reference: 4.5-11.0) HIGH
+      RBC: 4.2 x10^12/L (Reference: 4.0-5.5)
+      Hemoglobin: 11.8 g/dL (Reference: 12.0-16.0) LOW
+      Hematocrit: 35% (Reference: 36-46%) LOW
+      MCV: 78 fL (Reference: 80-100) LOW
+      Platelets: 245 x10^9/L (Reference: 150-400)
+
+      Differential:
+      Neutrophils: 75% (Reference: 40-70%) HIGH
+      Lymphocytes: 18% (Reference: 20-40%) LOW
+    output:
+      date: "01/15/2023"
+      provider: "Not Specified"
+      facility: "Memorial Hospital Lab"
+      exhibit_reference: "8F@112"
+      page_range: "112"
+      visit_type: "lab_result"
+      test_panel: "CBC with Differential"
+      tests:
+        - test_name: "WBC"
+          result_value: "12.5 x10^9/L"
+          reference_range: "4.5-11.0"
+          abnormal_flag: "High"
+        - test_name: "Hemoglobin"
+          result_value: "11.8 g/dL"
+          reference_range: "12.0-16.0"
+          abnormal_flag: "Low"
+        - test_name: "Hematocrit"
+          result_value: "35%"
+          reference_range: "36-46%"
+          abnormal_flag: "Low"
+        - test_name: "MCV"
+          result_value: "78 fL"
+          reference_range: "80-100"
+          abnormal_flag: "Low"
+      summary: "WBC 12.5 (H), Hgb 11.8 (L), Hct 35% (L), MCV 78 (L)"
+      clinical_significance: "Leukocytosis with left shift suggests infection; microcytic anemia pattern"

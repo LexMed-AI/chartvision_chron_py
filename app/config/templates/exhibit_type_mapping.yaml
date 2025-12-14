@@ -1,0 +1,431 @@
+# Exhibit Type Mapping Configuration
+# Maps ERE exhibit titles/patterns to extraction templates
+#
+# Version: 1.1.0
+#
+# Usage: When processing an exhibit, match its title against these patterns
+# to determine which extraction template to use.
+
+schema_version: "1.1.0"
+
+# Default template if no pattern matches
+default_template: "office_visit"
+
+# Section-specific default templates
+section_defaults:
+  A: "dde_assessment"      # A-section DDEs → RFC/PRTF extraction
+  E: "disability_report"   # E-section forms → disability/function reports
+  F: "office_visit"        # F-section medical → standard extraction
+
+# Pattern matching rules (evaluated in order)
+# First match wins - order from most specific to least specific
+mappings:
+
+  # ===========================================================================
+  # A-SECTION: DDE/State Agency Assessments (highest priority for A-section)
+  # ===========================================================================
+  dde_assessment:
+    patterns:
+      - "DDE"
+      - "Disability Determination"
+      - "RFC Assessment"
+      - "Physical Residual Functional Capacity"
+      - "Mental Residual Functional Capacity"
+      - "PRTF"
+      - "Psychiatric Review Technique"
+      - "State Agency"
+      - "Medical Consultant"
+      - "Psychological Consultant"
+      - "Case Analysis"
+      - "Rationale"
+      # SSA form codes
+      - "4734"           # Physical RFC Assessment form
+      - "4734SUP"        # Mental RFC Assessment form (supplement)
+      - "Physical RFC Assessment"
+      - "Mental RFC Assessment"
+    sections: ["A"]
+    description: "Disability Determination Explanations with RFC/PRTF assessments"
+
+  # ===========================================================================
+  # E-SECTION: Disability and Function Reports
+  # ===========================================================================
+  function_report:
+    patterns:
+      - "SSA-3373"
+      - "Function Report"
+      - "FUNCTION REPORT"
+      - "Activities of Daily Living"
+      - "ADL"
+      - "SSA-3380"
+      - "Third Party Function"
+    sections: ["E"]
+    description: "SSA-3373 Function Reports describing daily activities and limitations"
+
+  disability_report:
+    patterns:
+      - "SSA-3368"
+      - "Disability Report"
+      - "DISABILITY REPORT"
+      - "SSA-3369"
+      - "Field Office Report"
+      - "SSA-3441"
+      - "Reconsideration Report"
+      - "Work History"
+      - "SSA-3369"
+    sections: ["E"]
+    description: "SSA-3368 Disability Reports with medical history and work limitations"
+
+  # ===========================================================================
+  # F-SECTION: Medical Source Statements (treating physician opinions)
+  # ===========================================================================
+  medical_source_statement:
+    patterns:
+      - "Medical Source Statement"
+      - "MEDICAL SOURCE STATEMENT"
+      - "MSS"
+      - "RFC Questionnaire"
+      - "RFC QUESTIONNAIRE"
+      - "Treating Physician Statement"
+      - "Treating Source Statement"
+      - "Physical Capacities Evaluation"
+      - "Mental Capacities Evaluation"
+      - "Functional Abilities"
+      - "Work Restrictions"
+      - "Attending Physician Statement"
+      - "Physician Opinion"
+      - "Doctor Opinion"
+      - "Medical Opinion"
+      - "Functional Assessment Form"
+      - "Disability Opinion"
+      # SSA form codes
+      - "RMEDINT"         # Response to Medical Interrogatory
+      - "Response to Medical Interrogatory"
+      - "Medical Interrogatory"
+    sections: ["F"]
+    description: "Treating/examining physician RFC questionnaires and functional limitation opinions"
+
+  # ===========================================================================
+  # F-SECTION: Consultative Examinations (high priority - SSA ordered)
+  # ===========================================================================
+  consultative_exam:
+    patterns:
+      - "Consultative Exam"
+      - "CONSULTATIVE"
+      - "CE Report"
+      - "CE Exam"
+      - "Physical CE"
+      - "Psychological CE"
+      - "Mental CE"
+      - "Internal Medicine CE"
+      - "Orthopedic CE"
+      - "SSA Exam"
+      - "DDS Exam"
+      - "Ordered by SSA"
+      - "Ordered by DDS"
+    sections: ["F"]
+    description: "SSA-ordered consultative examinations (physical and psychological)"
+
+  # ===========================================================================
+  # F-SECTION: Medication Lists
+  # ===========================================================================
+  medication_list:
+    patterns:
+      - "Medication List"
+      - "MEDICATION LIST"
+      - "Medication Reconciliation"
+      - "Med Rec"
+      - "Pharmacy"
+      - "PHARMACY"
+      - "Prescription History"
+      - "Current Medications"
+      - "Medication History"
+      - "Drug List"
+    sections: ["F"]
+    description: "Medication reconciliation and pharmacy records"
+
+  # ===========================================================================
+  # F-SECTION: Imaging Reports
+  # ===========================================================================
+  imaging_report:
+    patterns:
+      - "MRI"
+      - "CT Scan"
+      - "CT "
+      - "X-Ray"
+      - "X-RAY"
+      - "Radiology"
+      - "RADIOLOGY"
+      - "Imaging"
+      - "IMAGING"
+      - "Ultrasound"
+      - "ULTRASOUND"
+      - "PET Scan"
+      - "Bone Scan"
+      - "Nuclear Medicine"
+      - "Mammogram"
+      - "DEXA"
+      - "Fluoroscopy"
+      - "Angiogram"
+      - "Echocardiogram"
+      - "ECHO"
+      - "EMG"
+      - "Nerve Conduction"
+      - "EEG"
+      - "EKG"
+      - "ECG"
+    sections: ["F"]
+    description: "Radiology and diagnostic imaging studies"
+
+  # ===========================================================================
+  # F-SECTION: Surgical Reports
+  # ===========================================================================
+  surgical_report:
+    patterns:
+      - "Operative Report"
+      - "OPERATIVE"
+      - "Surgical"
+      - "SURGICAL"
+      - "Procedure Note"
+      - "Procedure Report"
+      - "Op Note"
+      - "Surgery"
+      - "Arthroscopy"
+      - "Colonoscopy"
+      - "Endoscopy"
+      - "Biopsy"
+      - "BIOPSY"
+      - "Injection"
+      - "INJECTION"
+      - "Epidural"
+      - "Nerve Block"
+      - "Spinal Cord Stimulator"
+    sections: ["F"]
+    description: "Operative reports and procedure documentation"
+
+  # ===========================================================================
+  # F-SECTION: Hospital Admissions
+  # ===========================================================================
+  hospital_admission:
+    patterns:
+      - "Discharge Summary"
+      - "DISCHARGE"
+      - "Inpatient"
+      - "INPATIENT"
+      - "Hospital Record"
+      - "HOSPITAL"
+      - "Admission"
+      - "ADMISSION"
+      - "H&P"
+      - "History and Physical"
+      - "Emergency"
+      - "EMERGENCY"
+      - "ER "
+      - "ED "
+      - "Emergency Department"
+      - "Emergency Room"
+      - "Urgent Care"
+      - "URGENT CARE"
+    sections: ["F"]
+    description: "Hospital admissions, discharges, and ED visits"
+
+  # ===========================================================================
+  # F-SECTION: Lab Results
+  # ===========================================================================
+  lab_result:
+    patterns:
+      - "Laboratory"
+      - "LABORATORY"
+      - "Lab Result"
+      - "LAB"
+      - "Blood Work"
+      - "Pathology"
+      - "PATHOLOGY"
+      - "Culture"
+      - "Urinalysis"
+      - "CBC"
+      - "CMP"
+      - "BMP"
+      - "Lipid Panel"
+      - "Hemoglobin"
+      - "A1C"
+      - "TSH"
+      - "Thyroid"
+      - "Liver Function"
+      - "Kidney Function"
+      - "Drug Screen"
+      - "Toxicology"
+    sections: ["F"]
+    description: "Laboratory tests and pathology results"
+
+  # ===========================================================================
+  # F-SECTION: Therapy Evaluations
+  # ===========================================================================
+  therapy_eval:
+    patterns:
+      - "Physical Therapy"
+      - "PHYSICAL THERAPY"
+      - "PT Eval"
+      - "PT Note"
+      - "Occupational Therapy"
+      - "OCCUPATIONAL THERAPY"
+      - "OT Eval"
+      - "OT Note"
+      - "Speech Therapy"
+      - "SPEECH"
+      - "SLP"
+      - "Rehabilitation"
+      - "REHAB"
+      - "FCE"
+      - "Functional Capacity Evaluation"
+      - "Work Hardening"
+      - "Work Conditioning"
+      - "Vocational Rehab"
+    sections: ["F"]
+    description: "Physical, occupational, and speech therapy"
+
+  # ===========================================================================
+  # F-SECTION: Mental Health
+  # ===========================================================================
+  mental_health:
+    patterns:
+      - "Psychiatric"
+      - "PSYCHIATRIC"
+      - "Psych Eval"
+      - "Psychology"
+      - "PSYCHOLOGY"
+      - "Mental Health"
+      - "MENTAL HEALTH"
+      - "Behavioral Health"
+      - "Counseling"
+      - "Therapy Note"
+      - "Psychotherapy"
+      - "LCSW"
+      - "LPC"
+      - "Neuropsychological"
+      - "Psychological Testing"
+      - "MMPI"
+      - "IQ Test"
+      - "Cognitive Testing"
+    sections: ["F"]
+    description: "Psychiatric and psychological records"
+
+  # ===========================================================================
+  # F-SECTION: Office Visits (catch-all for general medical records)
+  # ===========================================================================
+  office_visit:
+    patterns:
+      - "Progress Note"
+      - "PROGRESS"
+      - "PROGRESSNOTES"    # SSA record code
+      - "Office Visit"
+      - "OFFICE"
+      - "Clinic Note"
+      - "CLINIC"
+      - "Follow-up"
+      - "FOLLOW-UP"
+      - "Consultation"
+      - "CONSULT"
+      - "Primary Care"
+      - "Internal Medicine"
+      - "Family Medicine"
+      - "Specialist"
+      - "Neurology"
+      - "Cardiology"
+      - "Orthopedic"
+      - "Pain Management"
+      - "Rheumatology"
+      - "Pulmonology"
+      - "Gastroenterology"
+      - "Nephrology"
+      - "Endocrinology"
+      - "Urology"
+      - "Oncology"
+      - "Dermatology"
+      - "Podiatry"
+      - "Chiropractic"
+      - "Telehealth"
+      - "Telemedicine"
+      # SSA record codes
+      - "3826"             # Medical Report/General
+      - "Medical Report/General"
+      - "Medical Report"
+    sections: ["F"]
+    description: "Standard office visits and progress notes"
+
+# ===========================================================================
+# Exhibit types to SKIP (not relevant for medical chronology)
+# ===========================================================================
+skip_patterns:
+  patterns:
+    # Evidence requests and administrative
+    - "Copy of Evidence Request"
+    - "CPYEVREQ"
+    - "Request for Medical Advice"
+    - "448"                          # SSA code for Request for Medical Advice
+    - "MEDNOMER"                     # Medical Source - No MER Available
+    - "Medical Source - No MER"      # Descriptive version
+    - "No MER Available"             # Alternate phrasing
+    - "Request for Records"
+    - "Records Request"
+    - "Medical Request"
+    - "Pending Records"
+    - "No Response"
+    - "Unable to Obtain"
+
+    # Billing and financial
+    - "Billing"
+    - "Invoice"
+    - "Statement of Charges"
+    - "Insurance Claim"
+    - "EOB"
+    - "Explanation of Benefits"
+    - "Itemized Charges"
+    - "Account Summary"
+
+    # Administrative forms
+    - "Duplicate"
+    - "DUPLICATE"
+    - "Authorization"
+    - "Consent Form"
+    - "HIPAA"
+    - "Privacy Notice"
+    - "Release Form"
+    - "Appointment"
+    - "Scheduler"
+
+    # Hearing-related (E-section to skip)
+    - "Hearing Notice"
+    - "Appeal Form"
+    - "Post-Hearing Brief"
+    - "Representative Brief"
+    - "Claimant Brief"
+    - "Memorandum"
+
+  action: "skip"
+  reason: "Administrative documents without medical content"
+
+# ===========================================================================
+# Scanned page handling
+# ===========================================================================
+scanned_page_handling:
+  detection_threshold: 200  # chars - matches ERE reference guide (court stamps ~95 chars)
+  action: "textract"  # Send to Textract for OCR
+  fallback_template: "office_visit"  # If OCR fails, try generic extraction
+
+# ===========================================================================
+# Template file mapping
+# ===========================================================================
+template_files:
+  dde_assessment: "extraction/dde_assessment.yaml"
+  medical_source_statement: "extraction/medical_source_statement.yaml"
+  consultative_exam: "extraction/consultative_exam.yaml"
+  function_report: "extraction/function_report.yaml"
+  disability_report: "extraction/disability_report.yaml"
+  medication_list: "extraction/medication_list.yaml"
+  imaging_report: "extraction/imaging_report.yaml"
+  surgical_report: "extraction/surgical_report.yaml"
+  hospital_admission: "extraction/hospital_admission.yaml"
+  lab_result: "extraction/lab_result.yaml"
+  therapy_eval: "extraction/therapy_eval.yaml"
+  mental_health: "extraction/mental_health.yaml"
+  office_visit: "extraction/office_visit.yaml"

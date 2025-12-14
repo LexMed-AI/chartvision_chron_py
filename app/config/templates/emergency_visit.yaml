@@ -1,0 +1,230 @@
+# Emergency Visit Extraction Template
+# For: Emergency Department visits, Urgent Care visits, Trauma evaluations
+#
+# Version: 1.0.0
+
+visit_type: "emergency_visit"
+description: "Emergency department and urgent care visits"
+
+# User prompt specific to emergency visits
+user_prompt: |
+  Parse the following emergency department/urgent care records and extract all visits.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH VISIT:**
+  - Date and time of arrival
+  - ED provider name and credentials
+  - Facility name
+  - Chief complaint/presenting problem
+  - Triage level (if documented)
+  - History of present illness
+  - Physical exam findings
+  - ED course/interventions
+  - Diagnoses
+  - Disposition (admitted, discharged, transferred, AMA)
+  - Discharge instructions
+
+  **OUTPUT:** Return JSON array following the emergency_visit schema.
+
+# Fields specific to emergency visits
+fields:
+  arrival_time:
+    type: datetime
+    required: false
+    label: "Arrival"
+    description: "Date and time of ED arrival"
+
+  triage_level:
+    type: enum
+    required: false
+    label: "Triage"
+    values:
+      - "Level 1 - Resuscitation"
+      - "Level 2 - Emergent"
+      - "Level 3 - Urgent"
+      - "Level 4 - Less Urgent"
+      - "Level 5 - Non-Urgent"
+    description: "ESI triage level"
+
+  chief_complaint:
+    type: text
+    required: true
+    label: "CC"
+    description: "Primary reason for ED visit"
+    max_len: 200
+
+  history_present_illness:
+    type: text
+    required: false
+    label: "HPI"
+    description: "History of present illness"
+    max_len: 400
+
+  physical_exam:
+    type: text
+    required: false
+    label: "Exam"
+    description: "Physical examination findings"
+
+  vital_signs:
+    type: text
+    required: false
+    label: "Vitals"
+    description: "Vital signs at presentation"
+
+  ed_course:
+    type: text
+    required: false
+    label: "ED Course"
+    description: "Interventions and treatment in ED"
+
+  diagnoses:
+    type: array
+    items: string
+    required: true
+    label: "Dx"
+    description: "ED diagnoses"
+
+  procedures:
+    type: array
+    items: string
+    required: false
+    label: "Procedures"
+    description: "Procedures performed in ED"
+
+  disposition:
+    type: enum
+    required: true
+    label: "Disposition"
+    values:
+      - "Discharged Home"
+      - "Admitted Inpatient"
+      - "Admitted Observation"
+      - "Transferred"
+      - "Left AMA"
+      - "LWBS"
+      - "Deceased"
+    description: "ED disposition"
+
+  discharge_instructions:
+    type: text
+    required: false
+    label: "Instructions"
+    description: "Discharge instructions and follow-up"
+
+# Output labels for occurrence_treatment column
+output_labels: ["CC", "HPI", "ED Course", "Dx", "Disposition"]
+
+# Formatting example
+output_example: |
+  CC: Chest pain, shortness of breath
+  HPI: 62yo M with sudden onset substernal chest pain x2hrs, radiating to left arm
+  ED Course: EKG showed ST elevations, troponin elevated. Heparin/aspirin given. Cath lab activated.
+  Dx: Acute STEMI, Hypertension
+  Disposition: Admitted to CCU for cardiac catheterization
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      EMERGENCY DEPARTMENT REPORT
+      Date: 04/15/2022  Time: 14:32
+      Facility: Memorial Hospital ED
+      Provider: Michael Chen, MD
+
+      TRIAGE: Level 2 - Emergent
+
+      CHIEF COMPLAINT: Chest pain, difficulty breathing
+
+      HPI: 62 year old male presents with sudden onset substernal chest
+      pressure x 2 hours, radiating to left arm. Associated with diaphoresis
+      and shortness of breath. Pain 8/10. History of HTN, hyperlipidemia.
+      Took aspirin at home prior to arrival.
+
+      VITALS: BP 168/95, HR 102, RR 22, O2 Sat 94% RA, Temp 98.6F
+
+      PHYSICAL EXAM:
+      General: Diaphoretic, appears uncomfortable
+      CV: Tachycardic, regular rhythm, no murmurs
+      Lungs: Mild bibasilar crackles
+      Ext: No edema, pulses intact
+
+      ED COURSE:
+      - EKG: ST elevations V2-V5
+      - Troponin: 2.4 ng/mL (elevated)
+      - CXR: Mild pulmonary vascular congestion
+      - Aspirin 325mg, Heparin drip started, Plavix 600mg load
+      - Cardiology consulted, cath lab activated
+
+      DIAGNOSES:
+      1. Acute ST-elevation myocardial infarction (STEMI)
+      2. Hypertensive urgency
+      3. Hyperlipidemia
+
+      DISPOSITION: Admitted to CCU for emergent cardiac catheterization
+    output:
+      date: "04/15/2022"
+      provider: "Michael Chen, MD"
+      facility: "Memorial Hospital ED"
+      exhibit_reference: "12F@88"
+      page_range: "88-95"
+      visit_type: "emergency_visit"
+      arrival_time: "04/15/2022 14:32"
+      triage_level: "Level 2 - Emergent"
+      chief_complaint: "Chest pain, difficulty breathing"
+      history_present_illness: "62 year old male presents with sudden onset substernal chest pressure x 2 hours, radiating to left arm. Associated with diaphoresis and shortness of breath. Pain 8/10. History of HTN, hyperlipidemia. Took aspirin at home prior to arrival."
+      vital_signs: "BP 168/95, HR 102, RR 22, O2 Sat 94% RA, Temp 98.6F"
+      physical_exam: "Diaphoretic, appears uncomfortable. Tachycardic, regular rhythm, no murmurs. Mild bibasilar crackles. No edema, pulses intact."
+      ed_course: "EKG showed ST elevations V2-V5. Troponin elevated at 2.4. CXR showed mild pulmonary vascular congestion. Given aspirin 325mg, started heparin drip, Plavix 600mg load. Cardiology consulted, cath lab activated."
+      diagnoses:
+        - "Acute ST-elevation myocardial infarction (STEMI)"
+        - "Hypertensive urgency"
+        - "Hyperlipidemia"
+      procedures:
+        - "EKG"
+        - "Chest X-ray"
+        - "Troponin"
+      disposition: "Admitted Inpatient"
+
+  - input: |
+      URGENT CARE VISIT
+      Date: 09/10/2021
+      Provider: Sarah Lopez, PA-C
+      Facility: Quick Care Urgent Care
+
+      CC: Ankle injury
+
+      HPI: 34 y/o female twisted right ankle playing soccer 3 hours ago.
+      Immediate swelling and difficulty bearing weight. No prior ankle injuries.
+      Denies numbness, tingling.
+
+      EXAM: Right ankle with moderate swelling lateral malleolus. TTP over
+      ATFL. Negative squeeze test. Unable to bear weight. Neurovascular intact.
+
+      X-RAY RIGHT ANKLE: No fracture identified. Soft tissue swelling.
+
+      DIAGNOSIS: Right ankle sprain, Grade II
+
+      TREATMENT: Air cast applied, crutches provided.
+
+      DISPOSITION: Discharged home
+      INSTRUCTIONS: RICE protocol, Ibuprofen 600mg TID with food, non-weight
+      bearing x 1 week. F/U orthopedics if not improving in 5-7 days.
+    output:
+      date: "09/10/2021"
+      provider: "Sarah Lopez, PA-C"
+      facility: "Quick Care Urgent Care"
+      exhibit_reference: "4F@22"
+      page_range: "22-24"
+      visit_type: "emergency_visit"
+      chief_complaint: "Ankle injury"
+      history_present_illness: "34 y/o female twisted right ankle playing soccer 3 hours ago. Immediate swelling and difficulty bearing weight. No prior ankle injuries. Denies numbness, tingling."
+      physical_exam: "Right ankle with moderate swelling lateral malleolus. TTP over ATFL. Negative squeeze test. Unable to bear weight. Neurovascular intact."
+      ed_course: "X-ray obtained, no fracture. Air cast applied, crutches provided."
+      diagnoses:
+        - "Right ankle sprain, Grade II"
+      procedures:
+        - "X-ray right ankle"
+      disposition: "Discharged Home"
+      discharge_instructions: "RICE protocol, Ibuprofen 600mg TID with food, non-weight bearing x 1 week. F/U orthopedics if not improving in 5-7 days."

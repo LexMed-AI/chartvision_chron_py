@@ -1,0 +1,1072 @@
+# DDE/State Agency Assessment Extraction Template
+# For: A-Section DDEs containing RFC, PRTF, and State Agency Opinions
+#
+# Version: 2.0.0 - Enhanced with POMS-compliant fields
+#
+# References:
+#   - POMS DI 24510.050: Physical RFC Assessment Form (SSA-4734-BK)
+#   - POMS DI 24510.060: Mental RFC Assessment Form (SSA-4734-F4-SUP)
+#   - POMS DI 24583.005: Psychiatric Review Technique (PRT)
+#   - POMS DI 26515.001: Rationale Preparation
+#
+# Note: DDEs (Disability Determination Explanations) contain critical RFC and PRTF
+# assessments from state agency medical/psychological consultants that establish
+# the official functional capacity baseline.
+
+visit_type: "dde_assessment"
+description: "Disability Determination Explanation with RFC/PRTF assessments from state agency consultants"
+
+# Form references for documentation
+form_references:
+  physical_rfc: "SSA-4734-BK"
+  mental_rfc: "SSA-4734-F4-SUP"
+  prtf: "SSA-2506-BK"
+
+# User prompt specific to DDE extraction
+user_prompt: |
+  Parse the following Disability Determination Explanation (DDE) and extract all
+  case metadata, RFC, and PRTF assessments from state agency consultants.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT THE FOLLOWING:**
+
+  CASE METADATA (from DDE header):
+  - Claimant name
+  - SSN (last 4 digits only for reference)
+  - Date of birth
+  - Age at filing / Age at AOD
+  - Claim type(s): Title II (DIB), Title XVI (SSI), or Concurrent (both)
+  - Protective filing date (application date)
+  - Alleged onset date (AOD)
+  - Amended onset date (if different from AOD)
+  - Date last insured (DLI) - for Title II claims
+  - Prescribed period (DLI-related)
+  - Prior filing date (if applicable)
+  - Determination being made: Initial or Reconsideration
+
+  For Physical RFC Assessments (SSA-4734-BK):
+  - Date of assessment and determination level (Initial/Reconsideration)
+  - Medical Consultant (MC) name and credentials
+  - EXERTIONAL LIMITATIONS:
+    * Lift/Carry (occasional and frequent amounts)
+    * Stand/Walk (hours per 8-hour day)
+    * Sit (hours per 8-hour day)
+    * Push/Pull limitations
+  - POSTURAL LIMITATIONS (rate each: Never/Occasionally/Frequently/Unlimited):
+    * Climbing ramps/stairs
+    * Climbing ladders/ropes/scaffolds
+    * Balancing, Stooping, Kneeling, Crouching, Crawling
+  - MANIPULATIVE LIMITATIONS:
+    * Reaching (all directions, overhead, etc.)
+    * Handling, Fingering, Feeling
+  - VISUAL LIMITATIONS (if any)
+  - COMMUNICATIVE LIMITATIONS (if any)
+  - ENVIRONMENTAL LIMITATIONS:
+    * Extreme cold/heat, Wetness/humidity
+    * Noise, Vibration, Fumes/odors/dusts/gases
+    * Hazards (machinery, heights)
+  - Medical evidence exhibits cited with rationale
+
+  For Mental RFC/PRTF Assessments (SSA-4734-F4-SUP and SSA-2506-BK):
+  - Date of assessment and determination level
+  - Psychological Consultant (PC) name and credentials
+  - PRTF PARAGRAPH B CRITERIA (rate each: None/Mild/Moderate/Marked/Extreme):
+    1. Understand, remember, or apply information
+    2. Interact with others
+    3. Concentrate, persist, or maintain pace
+    4. Adapt or manage oneself
+  - PARAGRAPH C CRITERIA (if applicable for listings 12.02-12.04, 12.06, 12.15):
+    * C1: Relies on treatment/therapy/structured setting to diminish symptoms
+    * C2: Marginal adjustment - minimal capacity to adapt to changes
+  - MENTAL RFC - 20 WORK-RELATED ACTIVITIES (Section I categories):
+    * A. Understanding and Memory (3 items)
+    * B. Sustained Concentration and Persistence (8 items)
+    * C. Social Interaction (5 items)
+    * D. Adaptation (4 items)
+  - Section III narrative RFC determination
+  - Medical evidence exhibits cited with rationale
+
+  **OUTPUT:** Return JSON array following the dde_assessment schema.
+
+# Fields specific to DDE assessments
+fields:
+  # ============================================================================
+  # CASE METADATA (from DDE header)
+  # Per POMS DI 25501.210 (AOD), DI 25501.320 (DLI), DI 25501.370 (Title XVI)
+  # ============================================================================
+  claimant_name:
+    type: string
+    required: true
+    label: "Claimant"
+    description: "Full name of the claimant"
+
+  ssn_last_four:
+    type: string
+    required: false
+    label: "SSN"
+    format: "XXXX"
+    description: "Last 4 digits of SSN for reference"
+
+  date_of_birth:
+    type: date
+    required: true
+    label: "DOB"
+    format: "MM/DD/YYYY"
+    description: "Claimant's date of birth"
+
+  age_at_onset:
+    type: integer
+    required: false
+    label: "Age at AOD"
+    description: "Claimant's age at alleged onset date"
+
+  age_at_filing:
+    type: integer
+    required: false
+    label: "Age at Filing"
+    description: "Claimant's age at protective filing date"
+
+  age_category:
+    type: text
+    required: false
+    label: "Age Category"
+    description: "Claimant's age category at AOD or DLI per Grid Rules"
+    prompt_hint: |
+      Extract the claimant's age category at AOD or DLI. Look for terms like:
+      "younger individual" (18-44), "closely approaching advanced age" (50-54),
+      "advanced age" (55-59), "closely approaching retirement age" (60-64),
+      or specific age-based Grid Rule references.
+
+  claim_type:
+    type: enum
+    required: true
+    label: "Claim Type"
+    values:
+      - "Title II (DIB)"        # Disability Insurance Benefits
+      - "Title XVI (SSI)"       # Supplemental Security Income
+      - "Concurrent (II & XVI)" # Both DIB and SSI
+      - "Title II (DWB)"        # Disabled Widow(er)'s Benefits
+      - "Title II (CDB)"        # Childhood Disability Benefits
+    description: "Type of disability claim being adjudicated"
+
+  protective_filing_date:
+    type: date
+    required: true
+    label: "Filing Date"
+    format: "MM/DD/YYYY"
+    description: "Protective filing date / application date - earliest possible EOD for Title XVI"
+
+  alleged_onset_date:
+    type: date
+    required: true
+    label: "AOD"
+    format: "MM/DD/YYYY"
+    description: "Alleged onset date - date claimant alleges disability began (per POMS DI 25501.210)"
+
+  amended_onset_date:
+    type: date
+    required: false
+    label: "Amended AOD"
+    format: "MM/DD/YYYY"
+    description: "Amended alleged onset date if claimant revised AOD after initial filing"
+
+  established_onset_date:
+    type: date
+    required: false
+    label: "EOD"
+    format: "MM/DD/YYYY"
+    description: "Established onset date - date DDS determines disability began"
+
+  date_last_insured:
+    type: date
+    required: false
+    label: "DLI"
+    format: "MM/DD/YYYY"
+    description: "Date Last Insured - for Title II claims, must be disabled before DLI (per POMS DI 25501.320)"
+
+  prescribed_period:
+    type: object
+    required: false
+    label: "Prescribed Period"
+    fields:
+      start_date: date
+      end_date: date
+    description: "Period of disability being evaluated (often AOD through DLI or current)"
+
+  prior_filing_date:
+    type: date
+    required: false
+    label: "Prior Filing"
+    format: "MM/DD/YYYY"
+    description: "Date of any prior disability application"
+
+  prior_denial_date:
+    type: date
+    required: false
+    label: "Prior Denial"
+    format: "MM/DD/YYYY"
+    description: "Date of prior denial if applicable (affects res judicata)"
+
+  # ============================================================================
+  # ASSESSMENT HEADER INFORMATION
+  # ============================================================================
+  assessment_type:
+    type: enum
+    required: true
+    label: "Type"
+    values:
+      - "Physical RFC"
+      - "Mental RFC/PRTF"
+      - "Combined RFC"
+    description: "Type of functional capacity assessment"
+
+  assessment_date:
+    type: date
+    required: true
+    label: "Date"
+    description: "Date assessment was completed"
+
+  consultant_name:
+    type: string
+    required: true
+    label: "Consultant"
+    description: "State agency medical or psychological consultant name"
+
+  consultant_credentials:
+    type: string
+    required: false
+    label: "Credentials"
+    description: "Consultant credentials (MD, DO, PhD, PsyD, etc.)"
+
+  consultant_specialty:
+    type: string
+    required: false
+    label: "Specialty"
+    description: "Medical specialty if specified"
+
+  determination_level:
+    type: enum
+    required: true
+    label: "Level"
+    values:
+      - "Initial"
+      - "Reconsideration"
+    description: "Level of disability determination"
+
+  # ============================================================================
+  # PHYSICAL RFC - SSA-4734-BK SECTION I: EXERTIONAL LIMITATIONS
+  # ============================================================================
+  exertional_capacity:
+    type: enum
+    required: false
+    label: "Exertional Level"
+    values:
+      - "Sedentary"
+      - "Light"
+      - "Medium"
+      - "Heavy"
+      - "Very Heavy"
+    description: "Overall exertional capacity determination"
+
+  lift_carry:
+    type: object
+    required: false
+    label: "Lift/Carry"
+    fields:
+      occasional: string  # Up to 1/3 of workday
+      frequent: string    # 1/3 to 2/3 of workday
+    description: "Maximum lifting and carrying capacity (occasional = up to 1/3 day, frequent = 1/3 to 2/3 day)"
+
+  stand_walk:
+    type: object
+    required: false
+    label: "Stand/Walk"
+    fields:
+      total_hours: string       # e.g., "6 hours"
+      at_one_time: string       # e.g., "30 minutes"
+      with_breaks: boolean
+      assistive_device: string  # e.g., "cane", "walker"
+    description: "Standing and walking capacity in 8-hour workday"
+
+  sit:
+    type: object
+    required: false
+    label: "Sit"
+    fields:
+      total_hours: string       # e.g., "6 hours"
+      at_one_time: string       # e.g., "2 hours"
+      position_changes: string  # e.g., "every 30 minutes"
+    description: "Sitting capacity in 8-hour workday"
+
+  push_pull:
+    type: object
+    required: false
+    label: "Push/Pull"
+    fields:
+      upper_extremities: string
+      lower_extremities: string
+    description: "Push/pull limitations beyond lift/carry"
+
+  # ============================================================================
+  # PHYSICAL RFC - SSA-4734-BK SECTION I.B: POSTURAL LIMITATIONS
+  # ============================================================================
+  postural_limitations:
+    type: object
+    required: false
+    label: "Postural"
+    fields:
+      climbing_ramps_stairs:
+        type: enum
+        values: ["Never", "Occasionally", "Frequently", "Unlimited"]
+      climbing_ladders_ropes_scaffolds:
+        type: enum
+        values: ["Never", "Occasionally", "Frequently", "Unlimited"]
+      balancing:
+        type: enum
+        values: ["Never", "Occasionally", "Frequently", "Unlimited"]
+      stooping:
+        type: enum
+        values: ["Never", "Occasionally", "Frequently", "Unlimited"]
+      kneeling:
+        type: enum
+        values: ["Never", "Occasionally", "Frequently", "Unlimited"]
+      crouching:
+        type: enum
+        values: ["Never", "Occasionally", "Frequently", "Unlimited"]
+      crawling:
+        type: enum
+        values: ["Never", "Occasionally", "Frequently", "Unlimited"]
+    description: "Postural limitations (Never=0%, Occasionally=up to 1/3, Frequently=1/3 to 2/3)"
+
+  # ============================================================================
+  # PHYSICAL RFC - SSA-4734-BK SECTION I.C: MANIPULATIVE LIMITATIONS
+  # ============================================================================
+  manipulative_limitations:
+    type: object
+    required: false
+    label: "Manipulative"
+    fields:
+      reaching_all_directions:
+        type: enum
+        values: ["Unlimited", "Limited", "Never"]
+      reaching_overhead:
+        type: enum
+        values: ["Unlimited", "Limited", "Never"]
+      handling_gross_manipulation:
+        type: enum
+        values: ["Unlimited", "Limited", "Never"]
+      fingering_fine_manipulation:
+        type: enum
+        values: ["Unlimited", "Limited", "Never"]
+      feeling:
+        type: enum
+        values: ["Unlimited", "Limited", "Never"]
+      bilateral_or_unilateral: string  # e.g., "bilateral", "right only"
+    description: "Manipulative/hand-related limitations"
+
+  # ============================================================================
+  # PHYSICAL RFC - SSA-4734-BK SECTION I.D-E: VISUAL/COMMUNICATIVE
+  # ============================================================================
+  visual_limitations:
+    type: object
+    required: false
+    label: "Visual"
+    fields:
+      near_acuity: string
+      far_acuity: string
+      depth_perception: string
+      accommodation: string
+      color_vision: string
+      field_of_vision: string
+      avoid_hazards: boolean
+    description: "Visual limitations affecting work capacity"
+
+  communicative_limitations:
+    type: object
+    required: false
+    label: "Communicative"
+    fields:
+      hearing: string
+      speaking: string
+    description: "Hearing and speaking limitations"
+
+  # ============================================================================
+  # PHYSICAL RFC - SSA-4734-BK: ENVIRONMENTAL LIMITATIONS
+  # ============================================================================
+  environmental_limitations:
+    type: object
+    required: false
+    label: "Environmental"
+    fields:
+      extreme_cold:
+        type: enum
+        values: ["Unlimited", "Avoid Concentrated Exposure", "Avoid Even Moderate Exposure", "Avoid All Exposure"]
+      extreme_heat:
+        type: enum
+        values: ["Unlimited", "Avoid Concentrated Exposure", "Avoid Even Moderate Exposure", "Avoid All Exposure"]
+      wetness:
+        type: enum
+        values: ["Unlimited", "Avoid Concentrated Exposure", "Avoid Even Moderate Exposure", "Avoid All Exposure"]
+      humidity:
+        type: enum
+        values: ["Unlimited", "Avoid Concentrated Exposure", "Avoid Even Moderate Exposure", "Avoid All Exposure"]
+      noise:
+        type: enum
+        values: ["Unlimited", "Avoid Concentrated Exposure", "Avoid Even Moderate Exposure", "Avoid All Exposure"]
+      vibration:
+        type: enum
+        values: ["Unlimited", "Avoid Concentrated Exposure", "Avoid Even Moderate Exposure", "Avoid All Exposure"]
+      fumes_odors_dusts_gases:
+        type: enum
+        values: ["Unlimited", "Avoid Concentrated Exposure", "Avoid Even Moderate Exposure", "Avoid All Exposure"]
+      hazards_machinery:
+        type: enum
+        values: ["Unlimited", "Avoid Concentrated Exposure", "Avoid Even Moderate Exposure", "Avoid All Exposure"]
+      hazards_heights:
+        type: enum
+        values: ["Unlimited", "Avoid Concentrated Exposure", "Avoid Even Moderate Exposure", "Avoid All Exposure"]
+    description: "Environmental restrictions per SSA-4734-BK"
+
+  # ============================================================================
+  # PRTF - SSA-2506-BK: PARAGRAPH B CRITERIA (4 Functional Areas)
+  # ============================================================================
+  paragraph_b_criteria:
+    type: object
+    required: false
+    label: "Para B"
+    fields:
+      understand_remember_apply:
+        type: enum
+        values: ["None", "Mild", "Moderate", "Marked", "Extreme"]
+        description: "Ability to understand, remember, or apply information"
+      interact_with_others:
+        type: enum
+        values: ["None", "Mild", "Moderate", "Marked", "Extreme"]
+        description: "Ability to interact with others"
+      concentrate_persist_pace:
+        type: enum
+        values: ["None", "Mild", "Moderate", "Marked", "Extreme"]
+        description: "Ability to concentrate, persist, or maintain pace"
+      adapt_manage_oneself:
+        type: enum
+        values: ["None", "Mild", "Moderate", "Marked", "Extreme"]
+        description: "Ability to adapt or manage oneself"
+    description: "Paragraph B functional limitation ratings per POMS DI 24583.005"
+
+  # ============================================================================
+  # PRTF - PARAGRAPH C CRITERIA (Serious and Persistent)
+  # For listings 12.02, 12.03, 12.04, 12.06, 12.15
+  # ============================================================================
+  paragraph_c_criteria:
+    type: object
+    required: false
+    label: "Para C"
+    fields:
+      applicable: boolean
+      c1_treatment_reliance:
+        type: boolean
+        description: "Relies on ongoing medical treatment, mental health therapy, psychosocial support, or highly structured setting to diminish symptoms"
+      c2_marginal_adjustment:
+        type: boolean
+        description: "Marginal adjustment - minimal capacity to adapt to changes in environment or demands not already part of daily life"
+      duration_met:
+        type: boolean
+        description: "Medically documented history over at least 2 years"
+    description: "Paragraph C criteria for serious and persistent mental disorders"
+
+  # ============================================================================
+  # MENTAL RFC - SSA-4734-F4-SUP SECTION I: 20 WORK-RELATED ACTIVITIES
+  # ============================================================================
+  mental_rfc_section_i:
+    type: object
+    required: false
+    label: "Mental RFC Section I"
+    fields:
+      # Category A: Understanding and Memory (3 items)
+      a_understanding_memory:
+        type: object
+        fields:
+          a1_remember_locations_procedures:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to remember locations and work-like procedures"
+          a2_understand_short_simple:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to understand and remember very short and simple instructions"
+          a3_understand_detailed:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to understand and remember detailed instructions"
+
+      # Category B: Sustained Concentration and Persistence (8 items)
+      b_concentration_persistence:
+        type: object
+        fields:
+          b1_carry_out_short_simple:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to carry out very short and simple instructions"
+          b2_carry_out_detailed:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to carry out detailed instructions"
+          b3_maintain_attention_extended:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to maintain attention and concentration for extended periods"
+          b4_perform_within_schedule:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to perform activities within a schedule, maintain regular attendance, and be punctual"
+          b5_sustain_ordinary_routine:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to sustain an ordinary routine without special supervision"
+          b6_work_proximity_others:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to work in coordination with or proximity to others without being distracted"
+          b7_make_simple_decisions:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to make simple work-related decisions"
+          b8_complete_normal_workday:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to complete a normal workday and workweek without interruptions from psychologically based symptoms"
+
+      # Category C: Social Interaction (5 items)
+      c_social_interaction:
+        type: object
+        fields:
+          c1_interact_general_public:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to interact appropriately with the general public"
+          c2_ask_simple_questions:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to ask simple questions or request assistance"
+          c3_accept_instructions_criticism:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to accept instructions and respond appropriately to criticism from supervisors"
+          c4_get_along_coworkers:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to get along with coworkers or peers without distracting them"
+          c5_maintain_socially_appropriate:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to maintain socially appropriate behavior and adhere to basic standards of neatness/cleanliness"
+
+      # Category D: Adaptation (4 items)
+      d_adaptation:
+        type: object
+        fields:
+          d1_respond_to_changes:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to respond appropriately to changes in the work setting"
+          d2_aware_of_hazards:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to be aware of normal hazards and take appropriate precautions"
+          d3_travel_unfamiliar:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to travel in unfamiliar places or use public transportation"
+          d4_set_realistic_goals:
+            type: enum
+            values: ["Not Significantly Limited", "Moderately Limited", "Markedly Limited", "No Evidence of Limitation", "Not Ratable"]
+            description: "Ability to set realistic goals or make plans independently of others"
+
+    description: "Mental RFC Section I - 20 work-related mental activities per SSA-4734-F4-SUP"
+
+  # ============================================================================
+  # MENTAL RFC - SECTION III NARRATIVE
+  # ============================================================================
+  mental_rfc_narrative:
+    type: text
+    required: false
+    label: "Mental RFC Narrative"
+    description: "Section III narrative RFC determination - what claimant can still do despite limitations"
+
+  # ============================================================================
+  # LISTING CATEGORIES CONSIDERED
+  # ============================================================================
+  listing_categories:
+    type: array
+    items: object
+    required: false
+    label: "Listings"
+    item_fields:
+      listing_number: string    # e.g., "12.04"
+      listing_name: string      # e.g., "Depressive, bipolar and related disorders"
+      met_or_equaled: boolean
+    description: "Mental disorder listings evaluated (12.02-12.15)"
+
+  # ============================================================================
+  # DIAGNOSES AND EVIDENCE
+  # ============================================================================
+  primary_diagnoses:
+    type: array
+    items: object
+    required: true
+    label: "Dx"
+    item_fields:
+      diagnosis: string
+      icd_code: string
+    description: "Primary diagnoses considered in assessment with ICD codes"
+
+  secondary_diagnoses:
+    type: array
+    items: object
+    required: false
+    label: "Secondary Dx"
+    item_fields:
+      diagnosis: string
+      icd_code: string
+    description: "Secondary/comorbid diagnoses"
+
+  evidence_cited:
+    type: array
+    items: object
+    required: false
+    label: "Evidence"
+    item_fields:
+      exhibit_reference: string  # e.g., "3F@45-52"
+      description: string        # e.g., "MRI lumbar spine"
+      weight_given: string       # e.g., "Persuasive", "Somewhat persuasive"
+    description: "Medical evidence exhibits cited with weight assessment"
+
+  # ============================================================================
+  # RATIONALE AND NARRATIVE (per POMS DI 26515.001)
+  # Phase 3: "Smart Photocopier" - Extract specific legal rationales, not summaries
+  # ============================================================================
+
+  # NEW: Granular Rationale Extraction
+  # We use "Extract text..." phrasing to ensure verbatim capture, not summarization.
+
+  listing_analysis_narrative:
+    type: text
+    required: false
+    label: "Listing Analysis (Step 3)"
+    description: "Specific text explaining why impairments did/did not meet a Listing."
+    prompt_hint: |
+      Extract the specific text where the consultant discusses whether the claimant meets or equals a Listing (e.g., 1.04, 12.04).
+      Capture the specific reasons cited (e.g., 'no nerve root compression', 'Paragraph B criteria not met').
+      Do not summarize; extract the rationale text verbatim when possible.
+      Look for phrases like 'does not meet Listing X because...', 'the criteria at [section] are not satisfied'.
+
+  symptom_consistency_narrative:
+    type: text
+    required: false
+    label: "Symptom Consistency (Step 4)"
+    description: "Rationale regarding credibility/consistency of claimant statements."
+    prompt_hint: |
+      Extract the text discussing the consistency of the claimant's statements with objective medical evidence.
+      Look for phrases like 'statements are not consistent', 'allegations are partially supported',
+      'intensity and persistence', or 'activities of daily living suggest'.
+      Capture the specific evidence cited to discount symptoms (e.g., 'sat through 45-minute session').
+      Do not summarize; extract the rationale text.
+
+  opinion_weighting_narrative:
+    type: text
+    required: false
+    label: "Opinion Weighting (Step 4)"
+    description: "Rationale for weight given to medical opinions (treating sources, CEs)."
+    prompt_hint: |
+      Extract the narrative explanation for the weight/persuasiveness assigned to specific medical opinions.
+      Look for 'not consistent with', 'not supported by', 'given little weight because',
+      or 'this opinion is not persuasive'.
+      Capture WHY Dr. [Name]'s opinion was found persuasive or unpersuasive with specific reasons.
+      Do not summarize; extract the rationale text.
+
+  # Keep generic narrative as a catch-all for anything else
+  other_narrative:
+    type: text
+    required: false
+    label: "Other Rationale"
+    description: "Any other summary or rationale text not covered by the three specific categories above."
+
+  # DEPRECATED but kept for backward compatibility
+  consultant_narrative:
+    type: text
+    required: false
+    label: "Narrative (Legacy)"
+    description: "[DEPRECATED - use listing_analysis_narrative, symptom_consistency_narrative, opinion_weighting_narrative instead] Generic consultant narrative"
+
+  symptom_evaluation:
+    type: text
+    required: false
+    label: "Symptoms"
+    description: "Evaluation of claimant's reported symptoms vs. objective evidence"
+
+  medical_source_statement:
+    type: object
+    required: false
+    label: "MSS Review"
+    fields:
+      source_name: string
+      opinion_summary: string
+      consistency_with_evidence: string
+      weight_given: string
+    description: "Review of treating/examining source opinions per SSA-4734-BK Section III"
+
+# Output labels for occurrence_treatment column
+output_labels: ["Claimant", "Claim Type", "AOD", "DLI", "Type", "Level", "Exertional Level", "Para B", "Dx", "Narrative"]
+
+# Formatting example
+output_example: |
+  Claimant: John Smith (DOB: 05/15/1970)
+  Claim Type: Title II (DIB)
+  AOD: 06/15/2022 | DLI: 12/31/2027
+  ---
+  Type: Physical RFC
+  Level: Initial
+  Consultant: Robert Johnson, MD (Medical Consultant)
+  Exertional Level: Light
+  Lift/Carry: 20 lbs occasional, 10 lbs frequent
+  Stand/Walk: 6 hours total, 30 min at one time
+  Sit: 6 hours in 8-hour day
+  Postural: Occasional climbing/stooping/kneeling; Never ladders/scaffolds
+  Environmental: Avoid concentrated cold/vibration; Avoid all heights/machinery
+  Dx: Degenerative disc disease L4-L5 (M51.16), Obesity (E66.9)
+  Evidence: 1F, 3F@45-52 (MRI - persuasive), 5F@12-20, 7F
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      DISABILITY DETERMINATION EXPLANATION (DDE)
+
+      CASE INFORMATION:
+      Claimant: John Michael Smith
+      SSN: XXX-XX-1234
+      Date of Birth: 05/15/1970
+      Age: 52 (at AOD)
+      Claim Type: Title II (DIB)
+      Protective Filing Date: 01/10/2023
+      Alleged Onset Date: 06/15/2022
+      Date Last Insured: 12/31/2027
+
+      Determination Level: Initial
+      Date: 04/15/2023
+
+      PHYSICAL RESIDUAL FUNCTIONAL CAPACITY ASSESSMENT (SSA-4734-BK)
+      Medical Consultant: Robert Johnson, MD
+      Date Completed: 04/15/2023
+
+      PRIMARY DIAGNOSES:
+      1. Degenerative disc disease, lumbar spine (M51.16)
+      2. Obesity (E66.9)
+      3. Hypertension (I10)
+
+      SECTION I - PHYSICAL ABILITIES AND LIMITATIONS
+
+      A. EXERTIONAL LIMITATIONS:
+      Lift and/or Carry: Occasionally 20 pounds; Frequently 10 pounds
+      Stand and/or Walk: About 6 hours in an 8-hour workday, 30 min at one time
+      Sit: About 6 hours in an 8-hour workday
+      Push and/or Pull: Limited in lower extremities due to back pain
+
+      B. POSTURAL LIMITATIONS:
+      Climbing Ramp/Stairs: Occasionally
+      Climbing Ladder/Rope/Scaffolds: Never
+      Balancing: Occasionally
+      Stooping: Occasionally
+      Kneeling: Occasionally
+      Crouching: Occasionally
+      Crawling: Never
+
+      C. MANIPULATIVE LIMITATIONS:
+      Reaching: Unlimited
+      Handling: Unlimited
+      Fingering: Unlimited
+      Feeling: Unlimited
+
+      D. VISUAL LIMITATIONS: None established
+
+      E. COMMUNICATIVE LIMITATIONS: None established
+
+      F. ENVIRONMENTAL LIMITATIONS:
+      Extreme Cold: Avoid concentrated exposure
+      Extreme Heat: Unlimited
+      Wetness: Unlimited
+      Vibration: Avoid concentrated exposure
+      Fumes/Odors/Dusts: Unlimited
+      Hazardous Machinery: Avoid all exposure
+      Heights: Avoid all exposure
+
+      SECTION III - MEDICAL SOURCE STATEMENT REVIEW:
+      Treating physician Dr. Smith (4F) opined sedentary RFC. This opinion is
+      only somewhat persuasive as objective MRI findings (3F@45) show only
+      moderate disc degeneration without significant nerve root compression.
+
+      NARRATIVE RATIONALE: Claimant has DDD with moderate findings on MRI (3F@45).
+      Treatment records show ongoing back pain managed with PT and NSAIDs.
+      Despite allegations of severe limitations, objective findings support
+      capacity for light work with postural and environmental restrictions.
+      Claimant's obesity is accounted for in postural/environmental limits.
+
+      EVIDENCE CITED:
+      - 1F: Initial primary care records
+      - 3F@45-52: MRI lumbar spine (persuasive - moderate findings)
+      - 4F: Treating physician MSS (somewhat persuasive)
+      - 5F@12-20: Physical therapy records
+      - 7F: Recent office visit notes
+    output:
+      date: "04/15/2023"
+      provider: "Robert Johnson, MD"
+      facility: "State Agency DDS"
+      exhibit_reference: "1A@1"
+      page_range: "1-8"
+      visit_type: "dde_assessment"
+      # Case Metadata
+      claimant_name: "John Michael Smith"
+      ssn_last_four: "1234"
+      date_of_birth: "05/15/1970"
+      age_at_onset: 52
+      claim_type: "Title II (DIB)"
+      protective_filing_date: "01/10/2023"
+      alleged_onset_date: "06/15/2022"
+      date_last_insured: "12/31/2027"
+      # Assessment Details
+      assessment_type: "Physical RFC"
+      assessment_date: "04/15/2023"
+      consultant_name: "Robert Johnson"
+      consultant_credentials: "MD"
+      determination_level: "Initial"
+      exertional_capacity: "Light"
+      lift_carry:
+        occasional: "20 pounds"
+        frequent: "10 pounds"
+      stand_walk:
+        total_hours: "6 hours"
+        at_one_time: "30 minutes"
+      sit:
+        total_hours: "6 hours"
+      push_pull:
+        lower_extremities: "Limited due to back pain"
+      postural_limitations:
+        climbing_ramps_stairs: "Occasionally"
+        climbing_ladders_ropes_scaffolds: "Never"
+        balancing: "Occasionally"
+        stooping: "Occasionally"
+        kneeling: "Occasionally"
+        crouching: "Occasionally"
+        crawling: "Never"
+      manipulative_limitations:
+        reaching_all_directions: "Unlimited"
+        handling_gross_manipulation: "Unlimited"
+        fingering_fine_manipulation: "Unlimited"
+        feeling: "Unlimited"
+      environmental_limitations:
+        extreme_cold: "Avoid Concentrated Exposure"
+        extreme_heat: "Unlimited"
+        wetness: "Unlimited"
+        vibration: "Avoid Concentrated Exposure"
+        fumes_odors_dusts_gases: "Unlimited"
+        hazards_machinery: "Avoid All Exposure"
+        hazards_heights: "Avoid All Exposure"
+      primary_diagnoses:
+        - diagnosis: "Degenerative disc disease, lumbar spine"
+          icd_code: "M51.16"
+        - diagnosis: "Obesity"
+          icd_code: "E66.9"
+        - diagnosis: "Hypertension"
+          icd_code: "I10"
+      evidence_cited:
+        - exhibit_reference: "1F"
+          description: "Initial primary care records"
+        - exhibit_reference: "3F@45-52"
+          description: "MRI lumbar spine"
+          weight_given: "Persuasive"
+        - exhibit_reference: "4F"
+          description: "Treating physician MSS"
+          weight_given: "Somewhat persuasive"
+        - exhibit_reference: "5F@12-20"
+          description: "Physical therapy records"
+        - exhibit_reference: "7F"
+          description: "Recent office visit notes"
+      medical_source_statement:
+        source_name: "Dr. Smith (treating physician)"
+        opinion_summary: "Opined sedentary RFC"
+        consistency_with_evidence: "Only somewhat persuasive as objective MRI findings show only moderate disc degeneration without significant nerve root compression"
+        weight_given: "Somewhat persuasive"
+      consultant_narrative: "Claimant has DDD with moderate findings on MRI (3F@45). Treatment records show ongoing back pain managed with PT and NSAIDs. Despite allegations of severe limitations, objective findings support capacity for light work with postural and environmental restrictions. Claimant's obesity is accounted for in postural/environmental limits."
+
+  - input: |
+      PSYCHIATRIC REVIEW TECHNIQUE (SSA-2506-BK) AND MENTAL RFC (SSA-4734-F4-SUP)
+
+      CASE INFORMATION:
+      Claimant: Sarah Elizabeth Johnson
+      SSN: XXX-XX-5678
+      Date of Birth: 11/22/1985
+      Age: 37 (at AOD)
+      Claim Type: Concurrent (II & XVI)
+      Protective Filing Date: 02/15/2023
+      Alleged Onset Date: 08/01/2022
+      Date Last Insured: 09/30/2028
+
+      Date: 05/02/2023
+      Level: Initial Determination
+
+      Psychological Consultant: Maria Garcia, PhD
+      Date Completed: 05/02/2023
+
+      LISTINGS CONSIDERED:
+      12.04 Depressive, bipolar and related disorders - Does not meet or equal
+      12.06 Anxiety and obsessive-compulsive disorders - Does not meet or equal
+
+      PARAGRAPH A CRITERIA:
+      12.04: Medical documentation of depressive disorder with depressed mood,
+      diminished interest, sleep disturbance, decreased energy, difficulty
+      concentrating - SATISFIED
+      12.06: Medical documentation of anxiety disorder with restlessness,
+      easily fatigued, difficulty concentrating, irritability - SATISFIED
+
+      PARAGRAPH B CRITERIA RATINGS:
+      1. Understand, remember, or apply information: Moderate
+         - Can understand simple instructions; difficulty with complex
+      2. Interact with others: Moderate
+         - Isolates; can interact briefly with supervisors
+      3. Concentrate, persist, or maintain pace: Moderate
+         - Attention difficulties; can sustain for 2-hour periods
+      4. Adapt or manage oneself: Mild
+         - Generally manages self-care; stress tolerance reduced
+
+      PARAGRAPH C CRITERIA: Does not apply
+      - Not a 2-year history of treatment in highly structured setting
+      - Does not have marginal adjustment
+
+      MENTAL RFC ASSESSMENT (SSA-4734-F4-SUP) - SECTION I:
+
+      A. UNDERSTANDING AND MEMORY:
+      1. Remember locations and work-like procedures: Not Significantly Limited
+      2. Understand and remember short, simple instructions: Not Significantly Limited
+      3. Understand and remember detailed instructions: Moderately Limited
+
+      B. SUSTAINED CONCENTRATION AND PERSISTENCE:
+      4. Carry out short, simple instructions: Not Significantly Limited
+      5. Carry out detailed instructions: Moderately Limited
+      6. Maintain attention for extended periods: Moderately Limited
+      7. Perform within schedule, maintain attendance: Moderately Limited
+      8. Sustain ordinary routine without supervision: Not Significantly Limited
+      9. Work near others without distraction: Not Significantly Limited
+      10. Make simple work-related decisions: Not Significantly Limited
+      11. Complete normal workday without interruptions: Moderately Limited
+
+      C. SOCIAL INTERACTION:
+      12. Interact with general public: Markedly Limited
+      13. Ask simple questions or request assistance: Not Significantly Limited
+      14. Accept instructions from supervisors: Moderately Limited
+      15. Get along with coworkers: Moderately Limited
+      16. Maintain socially appropriate behavior: Not Significantly Limited
+
+      D. ADAPTATION:
+      17. Respond to changes in work setting: Moderately Limited
+      18. Be aware of hazards: Not Significantly Limited
+      19. Travel in unfamiliar places: Moderately Limited
+      20. Set realistic goals: Moderately Limited
+
+      SECTION III - MENTAL RFC NARRATIVE:
+      Claimant can understand, remember, and carry out simple instructions
+      and make simple work-related decisions. Can maintain concentration
+      for 2-hour periods with normal breaks. Can have occasional, superficial
+      interaction with coworkers and supervisors but should avoid public
+      contact. Can adapt to routine workplace changes with advance notice.
+
+      EVIDENCE CITED:
+      - 4F: Psychiatric evaluation (Dr. Williams) - persuasive
+      - 6F@1-15: Therapy notes - persuasive
+      - 8F: PCP records with depression treatment - supportive
+
+      NARRATIVE EXPLANATION: Claimant has documented history of MDD and GAD
+      with outpatient treatment. MSE shows some concentration difficulties
+      but thought process intact. Medications providing some benefit per 6F.
+      Functioning limited but not precluded for simple, routine tasks.
+    output:
+      date: "05/02/2023"
+      provider: "Maria Garcia, PhD"
+      facility: "State Agency DDS"
+      exhibit_reference: "1A@9"
+      page_range: "9-20"
+      visit_type: "dde_assessment"
+      # Case Metadata
+      claimant_name: "Sarah Elizabeth Johnson"
+      ssn_last_four: "5678"
+      date_of_birth: "11/22/1985"
+      age_at_onset: 37
+      claim_type: "Concurrent (II & XVI)"
+      protective_filing_date: "02/15/2023"
+      alleged_onset_date: "08/01/2022"
+      date_last_insured: "09/30/2028"
+      # Assessment Details
+      assessment_type: "Mental RFC/PRTF"
+      assessment_date: "05/02/2023"
+      consultant_name: "Maria Garcia"
+      consultant_credentials: "PhD"
+      determination_level: "Initial"
+      listing_categories:
+        - listing_number: "12.04"
+          listing_name: "Depressive, bipolar and related disorders"
+          met_or_equaled: false
+        - listing_number: "12.06"
+          listing_name: "Anxiety and obsessive-compulsive disorders"
+          met_or_equaled: false
+      paragraph_b_criteria:
+        understand_remember_apply: "Moderate"
+        interact_with_others: "Moderate"
+        concentrate_persist_pace: "Moderate"
+        adapt_manage_oneself: "Mild"
+      paragraph_c_criteria:
+        applicable: false
+        c1_treatment_reliance: false
+        c2_marginal_adjustment: false
+        duration_met: false
+      mental_rfc_section_i:
+        a_understanding_memory:
+          a1_remember_locations_procedures: "Not Significantly Limited"
+          a2_understand_short_simple: "Not Significantly Limited"
+          a3_understand_detailed: "Moderately Limited"
+        b_concentration_persistence:
+          b1_carry_out_short_simple: "Not Significantly Limited"
+          b2_carry_out_detailed: "Moderately Limited"
+          b3_maintain_attention_extended: "Moderately Limited"
+          b4_perform_within_schedule: "Moderately Limited"
+          b5_sustain_ordinary_routine: "Not Significantly Limited"
+          b6_work_proximity_others: "Not Significantly Limited"
+          b7_make_simple_decisions: "Not Significantly Limited"
+          b8_complete_normal_workday: "Moderately Limited"
+        c_social_interaction:
+          c1_interact_general_public: "Markedly Limited"
+          c2_ask_simple_questions: "Not Significantly Limited"
+          c3_accept_instructions_criticism: "Moderately Limited"
+          c4_get_along_coworkers: "Moderately Limited"
+          c5_maintain_socially_appropriate: "Not Significantly Limited"
+        d_adaptation:
+          d1_respond_to_changes: "Moderately Limited"
+          d2_aware_of_hazards: "Not Significantly Limited"
+          d3_travel_unfamiliar: "Moderately Limited"
+          d4_set_realistic_goals: "Moderately Limited"
+      mental_rfc_narrative: "Claimant can understand, remember, and carry out simple instructions and make simple work-related decisions. Can maintain concentration for 2-hour periods with normal breaks. Can have occasional, superficial interaction with coworkers and supervisors but should avoid public contact. Can adapt to routine workplace changes with advance notice."
+      primary_diagnoses:
+        - diagnosis: "Major depressive disorder, recurrent"
+          icd_code: "F33.1"
+        - diagnosis: "Generalized anxiety disorder"
+          icd_code: "F41.1"
+      evidence_cited:
+        - exhibit_reference: "4F"
+          description: "Psychiatric evaluation (Dr. Williams)"
+          weight_given: "Persuasive"
+        - exhibit_reference: "6F@1-15"
+          description: "Therapy notes"
+          weight_given: "Persuasive"
+        - exhibit_reference: "8F"
+          description: "PCP records with depression treatment"
+          weight_given: "Supportive"
+      consultant_narrative: "Claimant has documented history of MDD and GAD with outpatient treatment. MSE shows some concentration difficulties but thought process intact. Medications providing some benefit per 6F. Functioning limited but not precluded for simple, routine tasks."

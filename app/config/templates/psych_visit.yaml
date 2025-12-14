@@ -1,0 +1,258 @@
+# Psychiatric Visit Extraction Template
+# For: Psychiatric office visits, medication management, crisis evaluations
+#
+# Version: 1.0.0
+
+visit_type: "psych_visit"
+description: "Psychiatric office visits and medication management appointments"
+
+# User prompt specific to psychiatric visits
+user_prompt: |
+  Parse the following psychiatric visit records and extract all encounters.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH VISIT:**
+  - Date of service
+  - Provider name and credentials (MD, DO, NP, PA)
+  - Facility name
+  - Visit type (Initial Eval, Follow-up, Med Check, Crisis)
+  - Chief complaint/presenting symptoms
+  - Current psychiatric symptoms
+  - Mental status exam findings
+  - Diagnoses (with ICD codes if available)
+  - Current medications
+  - Medication changes
+  - Side effects noted
+  - Safety assessment (SI/HI)
+  - Treatment plan
+
+  **OUTPUT:** Return JSON array following the psych_visit schema.
+
+# Fields specific to psychiatric visits
+fields:
+  visit_type_specific:
+    type: enum
+    required: true
+    label: "Visit Type"
+    values:
+      - "Initial Psychiatric Evaluation"
+      - "Psychiatric Follow-up"
+      - "Medication Management"
+      - "Crisis Evaluation"
+      - "Urgent Psychiatric Visit"
+    description: "Type of psychiatric visit"
+
+  chief_complaint:
+    type: text
+    required: true
+    label: "CC"
+    description: "Primary reason for visit"
+    max_len: 200
+
+  current_symptoms:
+    type: text
+    required: false
+    label: "Current Sx"
+    description: "Current psychiatric symptoms"
+
+  symptom_severity:
+    type: enum
+    required: false
+    label: "Severity"
+    values:
+      - "Mild"
+      - "Moderate"
+      - "Severe"
+      - "In Remission"
+    description: "Overall symptom severity"
+
+  mse_summary:
+    type: text
+    required: false
+    label: "MSE"
+    description: "Mental status examination summary"
+
+  diagnoses:
+    type: array
+    items: string
+    required: true
+    label: "Dx"
+    description: "Psychiatric diagnoses"
+
+  current_medications:
+    type: array
+    items: string
+    required: false
+    label: "Current Meds"
+    description: "Current psychiatric medications"
+
+  medication_changes:
+    type: text
+    required: false
+    label: "Med Changes"
+    description: "Changes made to medications this visit"
+
+  side_effects:
+    type: text
+    required: false
+    label: "Side Effects"
+    description: "Reported medication side effects"
+
+  safety_assessment:
+    type: text
+    required: false
+    label: "Safety"
+    description: "SI/HI assessment and safety planning"
+
+  sleep_appetite:
+    type: text
+    required: false
+    label: "Sleep/Appetite"
+    description: "Sleep and appetite patterns"
+
+  functional_status:
+    type: text
+    required: false
+    label: "Functioning"
+    description: "Work, social, and daily functioning"
+
+  treatment_plan:
+    type: text
+    required: false
+    label: "Plan"
+    description: "Treatment plan and follow-up"
+
+# Output labels for occurrence_treatment column
+output_labels: ["Visit Type", "CC", "MSE", "Dx", "Med Changes", "Plan"]
+
+# Formatting example
+output_example: |
+  Visit Type: Medication Management
+  CC: Follow-up depression, anxiety - reports improved mood
+  MSE: Euthymic, affect appropriate, no SI/HI
+  Dx: MDD recurrent moderate (F33.1), GAD (F41.1)
+  Med Changes: Increased Lexapro 10mg to 20mg daily
+  Plan: Continue therapy, return 4 weeks, call if worsening
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      PSYCHIATRIC FOLLOW-UP
+      Date: 06/22/2022
+      Provider: David Park, MD (Psychiatry)
+      Facility: Midwest Behavioral Health
+
+      VISIT TYPE: Medication Management
+
+      CC: Follow-up depression and anxiety
+
+      SUBJECTIVE: Patient reports improved mood since starting Lexapro 2 months
+      ago. Sleep improved, now getting 7 hours. Appetite normal. Energy still
+      somewhat low. Anxiety less frequent but still present in social situations.
+      Denies SI/HI. Working full-time, managing okay. Side effects: mild initial
+      nausea resolved.
+
+      MENTAL STATUS EXAM:
+      - Appearance: Well-groomed, appropriate dress
+      - Behavior: Cooperative, good eye contact
+      - Mood: "Better, about 6/10"
+      - Affect: Reactive, congruent
+      - Thought Process: Logical, goal-directed
+      - Thought Content: No SI/HI, no psychosis
+      - Cognition: Intact
+      - Insight/Judgment: Good/Good
+
+      CURRENT MEDICATIONS:
+      - Lexapro 10mg daily
+      - Trazodone 50mg QHS PRN
+
+      ASSESSMENT:
+      1. Major depressive disorder, recurrent, moderate - improving
+      2. Generalized anxiety disorder - stable
+
+      PLAN:
+      - Increase Lexapro to 20mg daily for residual symptoms
+      - Continue Trazodone PRN
+      - Continue individual therapy
+      - Return in 4 weeks
+      - Call if any worsening or SI
+    output:
+      date: "06/22/2022"
+      provider: "David Park, MD"
+      facility: "Midwest Behavioral Health"
+      exhibit_reference: "8F@156"
+      page_range: "156-158"
+      visit_type: "psych_visit"
+      visit_type_specific: "Medication Management"
+      chief_complaint: "Follow-up depression and anxiety"
+      current_symptoms: "Improved mood since starting Lexapro. Sleep improved to 7 hours. Appetite normal. Energy still somewhat low. Anxiety less frequent but still present in social situations."
+      symptom_severity: "Moderate"
+      mse_summary: "Well-groomed, cooperative. Mood 'Better, 6/10'. Affect reactive, congruent. Thought process logical. No SI/HI, no psychosis. Insight/judgment good."
+      diagnoses:
+        - "Major depressive disorder, recurrent, moderate - improving"
+        - "Generalized anxiety disorder - stable"
+      current_medications:
+        - "Lexapro 10mg daily"
+        - "Trazodone 50mg QHS PRN"
+      medication_changes: "Increased Lexapro from 10mg to 20mg daily"
+      side_effects: "Mild initial nausea - resolved"
+      safety_assessment: "Denies SI/HI"
+      sleep_appetite: "Sleep improved to 7 hours, appetite normal"
+      functional_status: "Working full-time, managing okay"
+      treatment_plan: "Increase Lexapro to 20mg daily. Continue Trazodone PRN. Continue individual therapy. Return in 4 weeks."
+
+  - input: |
+      INITIAL PSYCHIATRIC EVALUATION
+      Date: 01/15/2022
+      Provider: Emily Rodriguez, MD
+      Facility: Community Mental Health Center
+
+      CHIEF COMPLAINT: "I can't function anymore"
+
+      HPI: 38 y/o male self-referred for worsening depression x 6 months.
+      Reports persistent sad mood, anhedonia, poor sleep (4-5 hours), decreased
+      appetite with 15 lb weight loss, poor concentration affecting work
+      performance. Passive SI ("sometimes wish I wouldn't wake up") but denies
+      plan or intent. No prior psychiatric treatment. Family hx of depression
+      (mother). No substance abuse. Recently divorced, living alone.
+
+      PHQ-9: 22 (severe)
+      GAD-7: 14 (moderate)
+
+      MSE: Disheveled appearance, psychomotor retardation, poor eye contact.
+      Mood "hopeless." Affect flat, constricted. Thought process slow but
+      linear. Passive SI without plan. No hallucinations. Insight fair.
+
+      DIAGNOSES:
+      1. Major depressive disorder, single episode, severe without psychotic
+         features (F32.2)
+      2. Generalized anxiety disorder (F41.1)
+
+      PLAN:
+      - Start Zoloft 50mg daily
+      - Safety plan reviewed, crisis line provided
+      - Weekly therapy referral
+      - Return 2 weeks for medication check
+      - Go to ER if SI worsens
+    output:
+      date: "01/15/2022"
+      provider: "Emily Rodriguez, MD"
+      facility: "Community Mental Health Center"
+      exhibit_reference: "11F@5"
+      page_range: "5-12"
+      visit_type: "psych_visit"
+      visit_type_specific: "Initial Psychiatric Evaluation"
+      chief_complaint: "I can't function anymore"
+      current_symptoms: "Persistent sad mood, anhedonia, poor sleep (4-5 hours), decreased appetite with 15 lb weight loss, poor concentration affecting work performance. Passive SI without plan or intent."
+      symptom_severity: "Severe"
+      mse_summary: "Disheveled, psychomotor retardation, poor eye contact. Mood 'hopeless.' Affect flat, constricted. Thought process slow but linear. Passive SI without plan. No hallucinations. Insight fair."
+      diagnoses:
+        - "Major depressive disorder, single episode, severe without psychotic features (F32.2)"
+        - "Generalized anxiety disorder (F41.1)"
+      medication_changes: "Started Zoloft 50mg daily"
+      safety_assessment: "Passive SI ('sometimes wish I wouldn't wake up') but denies plan or intent. Safety plan reviewed, crisis line provided."
+      sleep_appetite: "Poor sleep 4-5 hours, decreased appetite with 15 lb weight loss"
+      functional_status: "Poor concentration affecting work performance. Recently divorced, living alone."
+      treatment_plan: "Start Zoloft 50mg daily. Safety plan reviewed. Weekly therapy referral. Return 2 weeks. Go to ER if SI worsens."

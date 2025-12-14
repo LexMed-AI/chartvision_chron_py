@@ -1,0 +1,451 @@
+# Consultative Examination (CE) Extraction Template
+# For: SSA-ordered physical and psychological consultative examinations
+#
+# Version: 1.0.0
+#
+# Note: CEs are examinations ordered by SSA when medical evidence is insufficient.
+# They follow a standardized format and contain critical opinion evidence
+# about functional limitations.
+
+visit_type: "consultative_exam"
+description: "SSA-ordered consultative examinations (physical CE, psychological CE)"
+
+# User prompt specific to CE extraction
+user_prompt: |
+  Parse the following Consultative Examination (CE) report ordered by SSA
+  and extract all findings and functional opinions.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT THE FOLLOWING:**
+
+  For Physical CE:
+  - Examination date
+  - CE examiner name and credentials
+  - Reason for examination
+  - Chief complaints reported by claimant
+  - Physical examination findings (vital signs, systems review)
+  - Range of motion measurements
+  - Strength and grip testing
+  - Gait and station assessment
+  - Diagnoses
+  - Functional opinion (sitting, standing, walking, lifting capacities)
+  - Use of assistive devices
+
+  For Psychological CE:
+  - Examination date
+  - CE examiner name and credentials
+  - Reason for referral
+  - Presenting complaints
+  - Mental status examination
+  - Cognitive testing results (if performed)
+  - Diagnoses
+  - Functional opinion (understanding, memory, concentration, social)
+  - Prognosis
+
+  **OUTPUT:** Return JSON array following the consultative_exam schema.
+
+# Fields specific to consultative examinations
+fields:
+  exam_type:
+    type: enum
+    required: true
+    label: "CE Type"
+    values:
+      - "Physical CE"
+      - "Psychological CE"
+      - "Neuropsychological CE"
+      - "Speech/Language CE"
+    description: "Type of consultative examination"
+
+  referral_reason:
+    type: text
+    required: true
+    label: "Referral"
+    description: "Reason SSA ordered the examination"
+
+  chief_complaints:
+    type: array
+    items: string
+    required: true
+    label: "Complaints"
+    description: "Claimant's reported symptoms and complaints"
+
+  # Physical CE fields
+  vital_signs:
+    type: object
+    required: false
+    label: "Vitals"
+    fields:
+      blood_pressure: string
+      pulse: string
+      height: string
+      weight: string
+      bmi: string
+    description: "Vital signs recorded"
+
+  physical_exam_findings:
+    type: array
+    items: string
+    required: false
+    label: "PE Findings"
+    description: "Physical examination findings by system"
+
+  range_of_motion:
+    type: array
+    items: object
+    required: false
+    label: "ROM"
+    item_fields:
+      joint: string
+      measurement: string
+      normal_range: string
+    description: "Range of motion measurements"
+
+  strength_testing:
+    type: text
+    required: false
+    label: "Strength"
+    description: "Muscle strength testing results"
+
+  grip_strength:
+    type: object
+    required: false
+    label: "Grip"
+    fields:
+      right: string
+      left: string
+    description: "Grip strength measurements"
+
+  gait_station:
+    type: text
+    required: false
+    label: "Gait/Station"
+    description: "Gait and station assessment findings"
+
+  assistive_devices:
+    type: text
+    required: false
+    label: "Devices"
+    description: "Assistive devices used or needed"
+
+  # Psychological CE fields
+  mental_status_exam:
+    type: object
+    required: false
+    label: "MSE"
+    fields:
+      appearance: string
+      behavior: string
+      speech: string
+      mood_affect: string
+      thought_process: string
+      thought_content: string
+      perception: string
+      orientation: string
+      memory: string
+      concentration: string
+      fund_of_knowledge: string
+      insight_judgment: string
+    description: "Mental status examination findings"
+
+  cognitive_testing:
+    type: array
+    items: object
+    required: false
+    label: "Testing"
+    item_fields:
+      test_name: string
+      score: string
+      interpretation: string
+    description: "Cognitive or psychological test results"
+
+  # Common fields
+  diagnoses:
+    type: array
+    items: string
+    required: true
+    label: "Dx"
+    description: "Diagnoses rendered by CE examiner"
+
+  functional_opinion:
+    type: object
+    required: true
+    label: "Functional Opinion"
+    fields:
+      sitting: string
+      standing: string
+      walking: string
+      lifting: string
+      carrying: string
+      understanding: string
+      memory: string
+      concentration: string
+      social_interaction: string
+      adaptation: string
+    description: "CE examiner's opinion on functional capacities"
+
+  functional_narrative:
+    type: text
+    required: false
+    label: "Opinion Narrative"
+    description: "Narrative functional opinion from examiner"
+
+  prognosis:
+    type: text
+    required: false
+    label: "Prognosis"
+    description: "Expected course and outcome"
+
+  limitations_supported:
+    type: boolean
+    required: false
+    label: "Limitations Supported"
+    description: "Whether alleged limitations are supported by examination"
+
+# Output labels for occurrence_treatment column
+output_labels: ["CE Type", "Complaints", "PE Findings", "Dx", "Functional Opinion"]
+
+# Formatting example
+output_example: |
+  CE Type: Physical CE
+  Referral: Evaluate back pain and functional limitations
+  Complaints: Low back pain radiating to legs, difficulty walking
+  PE Findings: Lumbar tenderness, reduced ROM, positive SLR bilateral
+  ROM: Lumbar flexion 40° (normal 90°), extension 10° (normal 25°)
+  Gait: Antalgic gait, uses cane
+  Dx: Lumbar radiculopathy, degenerative disc disease
+  Opinion: Can sit 4 hrs, stand 2 hrs, walk 2 hrs, lift 10 lbs
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      CONSULTATIVE EXAMINATION REPORT
+      Date of Examination: 06/15/2023
+      Examiner: Michael Thompson, MD (Internal Medicine)
+      Referred by: Social Security Administration
+
+      REASON FOR EXAMINATION: Evaluate back pain and lower extremity complaints
+
+      CHIEF COMPLAINTS:
+      1. Low back pain x 5 years, radiating to bilateral legs
+      2. Numbness and tingling in feet
+      3. Difficulty standing and walking
+      4. Uses cane for walking
+
+      VITAL SIGNS:
+      BP: 138/88  Pulse: 78  Height: 5'10"  Weight: 245 lbs  BMI: 35.2
+
+      PHYSICAL EXAMINATION:
+      General: Alert, cooperative, appears uncomfortable
+      HEENT: Normal
+      Neck: Supple, no thyromegaly
+      Lungs: Clear bilaterally
+      Cardiovascular: RRR, no murmurs
+      Abdomen: Obese, soft, non-tender
+      Extremities: No edema, pulses intact
+
+      MUSCULOSKELETAL EXAMINATION:
+      Spine: Lumbar paraspinal tenderness, decreased lordosis
+      ROM Lumbar Spine:
+        Flexion: 40° (normal 90°)
+        Extension: 10° (normal 25°)
+        Lateral bending: 15° bilaterally (normal 25°)
+      Straight Leg Raise: Positive at 30° bilaterally
+      Motor: 4/5 strength bilateral lower extremities
+      Sensory: Decreased to light touch L4-S1 distribution bilateral
+      Reflexes: Diminished at ankles bilaterally
+
+      GAIT AND STATION:
+      Gait antalgic, uses cane. Unable to walk on heels or toes.
+      Tandem gait impaired. Station steady with cane.
+
+      GRIP STRENGTH: Right 35 kg, Left 32 kg (normal)
+
+      DIAGNOSES:
+      1. Lumbar radiculopathy
+      2. Degenerative disc disease, lumbar spine
+      3. Obesity
+
+      FUNCTIONAL ASSESSMENT:
+      Based on today's examination:
+      - Sitting: 4 hours in 8-hour day with position changes
+      - Standing: 2 hours in 8-hour day
+      - Walking: 2 hours in 8-hour day with cane
+      - Lifting: 10 pounds occasionally, less than 10 frequently
+      - Postural: Should avoid repetitive bending, stooping, climbing
+
+      Claimant's complaints are SUPPORTED by objective findings.
+      Prognosis is guarded given chronic nature and obesity.
+    output:
+      date: "06/15/2023"
+      provider: "Michael Thompson, MD"
+      facility: "SSA Consultative Exam"
+      exhibit_reference: "10F@1"
+      page_range: "1-8"
+      visit_type: "consultative_exam"
+      exam_type: "Physical CE"
+      referral_reason: "Evaluate back pain and lower extremity complaints"
+      chief_complaints:
+        - "Low back pain x 5 years, radiating to bilateral legs"
+        - "Numbness and tingling in feet"
+        - "Difficulty standing and walking"
+        - "Uses cane for walking"
+      vital_signs:
+        blood_pressure: "138/88"
+        pulse: "78"
+        height: "5'10\""
+        weight: "245 lbs"
+        bmi: "35.2"
+      physical_exam_findings:
+        - "General: Alert, cooperative, appears uncomfortable"
+        - "Lungs: Clear bilaterally"
+        - "CV: RRR, no murmurs"
+        - "Abdomen: Obese, soft, non-tender"
+        - "Spine: Lumbar paraspinal tenderness, decreased lordosis"
+        - "Motor: 4/5 strength bilateral lower extremities"
+        - "Sensory: Decreased to light touch L4-S1 distribution bilateral"
+        - "Reflexes: Diminished at ankles bilaterally"
+      range_of_motion:
+        - joint: "Lumbar flexion"
+          measurement: "40°"
+          normal_range: "90°"
+        - joint: "Lumbar extension"
+          measurement: "10°"
+          normal_range: "25°"
+        - joint: "Lumbar lateral bending"
+          measurement: "15° bilateral"
+          normal_range: "25°"
+      strength_testing: "4/5 strength bilateral lower extremities. Straight leg raise positive at 30° bilaterally."
+      grip_strength:
+        right: "35 kg"
+        left: "32 kg"
+      gait_station: "Gait antalgic, uses cane. Unable to walk on heels or toes. Tandem gait impaired. Station steady with cane."
+      assistive_devices: "Uses cane for walking"
+      diagnoses:
+        - "Lumbar radiculopathy"
+        - "Degenerative disc disease, lumbar spine"
+        - "Obesity"
+      functional_opinion:
+        sitting: "4 hours in 8-hour day with position changes"
+        standing: "2 hours in 8-hour day"
+        walking: "2 hours in 8-hour day with cane"
+        lifting: "10 pounds occasionally, less than 10 frequently"
+      functional_narrative: "Claimant's complaints are SUPPORTED by objective findings. Should avoid repetitive bending, stooping, climbing."
+      prognosis: "Guarded given chronic nature and obesity"
+      limitations_supported: true
+
+  - input: |
+      PSYCHOLOGICAL CONSULTATIVE EXAMINATION
+      Date: 07/20/2023
+      Examiner: Patricia Williams, PhD (Clinical Psychology)
+      Referred by: SSA DDS
+
+      REASON FOR REFERRAL: Evaluate cognitive and emotional functioning
+
+      PRESENTING COMPLAINTS:
+      - Depression for 3 years following job loss
+      - Anxiety in social situations
+      - Difficulty concentrating and remembering things
+      - Isolates at home, rarely leaves house
+
+      BEHAVIORAL OBSERVATIONS:
+      Claimant arrived on time, casually dressed with adequate hygiene.
+      Appeared anxious, made poor eye contact. Speech soft and slow.
+      Cooperative with examination but appeared fatigued.
+
+      MENTAL STATUS EXAMINATION:
+      Appearance: Casually dressed, adequate hygiene
+      Behavior: Anxious, poor eye contact, cooperative
+      Speech: Soft, slow rate, normal tone
+      Mood: "Depressed"
+      Affect: Constricted, anxious
+      Thought Process: Logical, goal-directed
+      Thought Content: No SI/HI, no delusions, worry about finances
+      Perception: No hallucinations reported
+      Orientation: Oriented x 4
+      Memory: Immediate 3/3, Short-term 2/3 after 5 min, Long-term intact
+      Concentration: Serial 7s - 4 errors, Spelling WORLD backward - 2 errors
+      Fund of Knowledge: Average
+      Insight/Judgment: Fair/Fair
+
+      COGNITIVE TESTING:
+      WAIS-IV (selected subtests):
+        Digit Span: Scaled Score 6 (low average)
+        Coding: Scaled Score 5 (borderline)
+      Trail Making Test:
+        Part A: 45 seconds (normal)
+        Part B: 180 seconds (impaired)
+
+      DIAGNOSES:
+      1. Major Depressive Disorder, recurrent, moderate (F33.1)
+      2. Social Anxiety Disorder (F40.10)
+      3. Rule out cognitive disorder NOS
+
+      FUNCTIONAL ASSESSMENT:
+      Understanding/Memory: Can understand and remember simple instructions.
+        Difficulty with complex, multi-step instructions.
+      Concentration: Can sustain attention for simple tasks for 1-2 hours.
+        Difficulty with complex tasks requiring sustained concentration.
+      Social: Significant difficulty with public contact and group settings.
+        Can tolerate occasional, brief interaction with supervisors.
+      Adaptation: Can adapt to routine changes with support.
+        Difficulty with unexpected changes or stressors.
+
+      PROGNOSIS: Fair with continued treatment. Current functioning
+      significantly impaired by depression and anxiety. Would benefit
+      from medication management and therapy.
+    output:
+      date: "07/20/2023"
+      provider: "Patricia Williams, PhD"
+      facility: "SSA Consultative Exam"
+      exhibit_reference: "11F@1"
+      page_range: "1-12"
+      visit_type: "consultative_exam"
+      exam_type: "Psychological CE"
+      referral_reason: "Evaluate cognitive and emotional functioning"
+      chief_complaints:
+        - "Depression for 3 years following job loss"
+        - "Anxiety in social situations"
+        - "Difficulty concentrating and remembering things"
+        - "Isolates at home, rarely leaves house"
+      mental_status_exam:
+        appearance: "Casually dressed, adequate hygiene"
+        behavior: "Anxious, poor eye contact, cooperative"
+        speech: "Soft, slow rate, normal tone"
+        mood_affect: "Mood: 'Depressed'; Affect: Constricted, anxious"
+        thought_process: "Logical, goal-directed"
+        thought_content: "No SI/HI, no delusions, worry about finances"
+        perception: "No hallucinations reported"
+        orientation: "Oriented x 4"
+        memory: "Immediate 3/3, Short-term 2/3 after 5 min, Long-term intact"
+        concentration: "Serial 7s - 4 errors, Spelling WORLD backward - 2 errors"
+        fund_of_knowledge: "Average"
+        insight_judgment: "Fair/Fair"
+      cognitive_testing:
+        - test_name: "WAIS-IV Digit Span"
+          score: "Scaled Score 6"
+          interpretation: "Low average"
+        - test_name: "WAIS-IV Coding"
+          score: "Scaled Score 5"
+          interpretation: "Borderline"
+        - test_name: "Trail Making Test Part A"
+          score: "45 seconds"
+          interpretation: "Normal"
+        - test_name: "Trail Making Test Part B"
+          score: "180 seconds"
+          interpretation: "Impaired"
+      diagnoses:
+        - "Major Depressive Disorder, recurrent, moderate (F33.1)"
+        - "Social Anxiety Disorder (F40.10)"
+        - "Rule out cognitive disorder NOS"
+      functional_opinion:
+        understanding: "Can understand simple instructions; difficulty with complex, multi-step instructions"
+        memory: "Can remember simple instructions; difficulty with complex instructions"
+        concentration: "Can sustain attention for simple tasks for 1-2 hours; difficulty with complex tasks"
+        social_interaction: "Significant difficulty with public contact and group settings; can tolerate occasional, brief interaction with supervisors"
+        adaptation: "Can adapt to routine changes with support; difficulty with unexpected changes or stressors"
+      functional_narrative: "Current functioning significantly impaired by depression and anxiety. Would benefit from medication management and therapy."
+      prognosis: "Fair with continued treatment"
+      limitations_supported: true

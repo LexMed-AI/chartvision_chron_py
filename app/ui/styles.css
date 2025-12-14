@@ -1,0 +1,633 @@
+/**
+ * ChartVision - Medical Chronology Generator
+ * 3-Step Wizard UI
+ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Brand Colors */
+  --cv-cyan-400: #22d3ee;
+  --cv-cyan-500: #06b6d4;
+  --cv-cyan-600: #0891b2;
+  --cv-cyan-700: #0e7490;
+
+  /* Neutral Colors */
+  --cv-slate-50: #f8fafc;
+  --cv-slate-100: #f1f5f9;
+  --cv-slate-200: #e2e8f0;
+  --cv-slate-300: #cbd5e1;
+  --cv-slate-400: #94a3b8;
+  --cv-slate-500: #64748b;
+  --cv-slate-600: #475569;
+  --cv-slate-700: #334155;
+  --cv-slate-800: #1e293b;
+  --cv-slate-900: #0f172a;
+
+  /* Status Colors */
+  --cv-green-500: #10b981;
+  --cv-red-500: #ef4444;
+  --cv-amber-500: #f59e0b;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--cv-slate-900);
+  color: var(--cv-slate-100);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==========================================
+   Header
+   ========================================== */
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: var(--cv-slate-800);
+  border-bottom: 1px solid var(--cv-slate-700);
+}
+
+.header-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.header-brand h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--cv-cyan-400);
+  letter-spacing: -0.025em;
+}
+
+.header-subtitle {
+  font-size: 0.875rem;
+  color: var(--cv-slate-400);
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* Step Indicator */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.step-indicator .step {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--cv-slate-700);
+  color: var(--cv-slate-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.step-indicator .step.active {
+  background: var(--cv-cyan-600);
+  color: white;
+}
+
+.step-indicator .step.completed {
+  background: var(--cv-green-500);
+  color: white;
+}
+
+.step-line {
+  width: 24px;
+  height: 2px;
+  background: var(--cv-slate-700);
+}
+
+/* Header Buttons */
+.header-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.header-buttons button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--cv-slate-600);
+  background: var(--cv-slate-700);
+  color: var(--cv-slate-100);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.header-buttons button:hover {
+  background: var(--cv-slate-600);
+  border-color: var(--cv-cyan-500);
+}
+
+#downloadPdfBtn {
+  background: var(--cv-cyan-600);
+  border-color: var(--cv-cyan-600);
+}
+
+#downloadPdfBtn:hover {
+  background: var(--cv-cyan-500);
+}
+
+/* ==========================================
+   Main Layout
+   ========================================== */
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.wizard-step {
+  display: none;
+  flex: 1;
+}
+
+.wizard-step.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.step-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+/* ==========================================
+   Step 1: Upload
+   ========================================== */
+
+#dropZone {
+  width: 100%;
+  max-width: 500px;
+  padding: 4rem 3rem;
+  border: 2px dashed var(--cv-slate-600);
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#dropZone:hover,
+#dropZone.dragover {
+  border-color: var(--cv-cyan-500);
+  background: rgba(8, 145, 178, 0.1);
+}
+
+.drop-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.drop-title {
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--cv-slate-200);
+  margin-bottom: 0.5rem;
+}
+
+.drop-subtitle {
+  font-size: 0.875rem;
+  color: var(--cv-slate-400);
+}
+
+/* ==========================================
+   Step 2: Processing
+   ========================================== */
+
+.processing-card {
+  width: 100%;
+  max-width: 600px;
+  background: var(--cv-slate-800);
+  border-radius: 12px;
+  border: 1px solid var(--cv-slate-700);
+  padding: 2rem;
+}
+
+.processing-card h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--cv-cyan-400);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.file-info {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.file-name {
+  font-size: 0.875rem;
+  color: var(--cv-slate-300);
+  background: var(--cv-slate-900);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.progress-container {
+  height: 8px;
+  background: var(--cv-slate-700);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cv-cyan-600), var(--cv-cyan-400));
+  border-radius: 4px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.progress-status {
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--cv-slate-400);
+  margin-bottom: 1.5rem;
+}
+
+/* Event Log */
+.event-log {
+  background: var(--cv-slate-900);
+  border-radius: 8px;
+  border: 1px solid var(--cv-slate-700);
+  overflow: hidden;
+}
+
+.log-header {
+  padding: 0.5rem 1rem;
+  background: var(--cv-slate-800);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cv-slate-400);
+  border-bottom: 1px solid var(--cv-slate-700);
+}
+
+#logContent {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.log-entry {
+  color: var(--cv-slate-400);
+  padding: 0.125rem 0;
+}
+
+.log-entry.success {
+  color: var(--cv-green-500);
+}
+
+.log-entry.error {
+  color: var(--cv-red-500);
+}
+
+/* ==========================================
+   Step 3: Chronology View
+   Legal Document Layout (8.5" x 11" emulation)
+   ========================================== */
+
+.chronology-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* Full width - no max-width constraint */
+  width: 100%;
+  padding: 1.5rem 2rem;
+  overflow-x: auto;
+}
+
+#chronologyOutput {
+  flex: 1;
+  background: #ffffff;  /* White paper background */
+  border-radius: 4px;
+  border: 1px solid var(--cv-slate-600);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  /* Legal document margins: 1" = 96px at 96dpi */
+  padding: 72px 72px;
+  overflow-y: auto;
+  /* Legal document typography */
+  font-family: 'Times New Roman', Times, Georgia, serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  color: #000000;
+  /* Minimum width for legal content */
+  min-width: 816px;  /* 8.5" at 96dpi */
+}
+
+.chronology-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 1.5rem;
+}
+
+.secondary-btn {
+  padding: 0.75rem 1.5rem;
+  background: var(--cv-slate-700);
+  color: var(--cv-slate-200);
+  border: 1px solid var(--cv-slate-600);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.secondary-btn:hover {
+  background: var(--cv-slate-600);
+  border-color: var(--cv-slate-500);
+}
+
+/* ==========================================
+   Chronology Content Styling
+   Legal Document Typography (Word-style)
+   ========================================== */
+
+#chronologyOutput h1 {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 16pt;
+  font-weight: bold;
+  color: #000000;
+  text-align: center;
+  border-bottom: 2px solid #000000;
+  padding-bottom: 8pt;
+  margin-bottom: 18pt;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#chronologyOutput h2 {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 13pt;
+  font-weight: bold;
+  color: #000000;
+  border-bottom: 1px solid #000000;
+  padding-bottom: 4pt;
+  margin-top: 24pt;
+  margin-bottom: 12pt;
+  text-transform: uppercase;
+}
+
+#chronologyOutput h2:first-of-type {
+  margin-top: 0;
+}
+
+#chronologyOutput h3 {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 12pt;
+  font-weight: bold;
+  color: #000000;
+  margin-top: 18pt;
+  margin-bottom: 9pt;
+}
+
+#chronologyOutput p {
+  margin-bottom: 12pt;
+  text-align: justify;
+}
+
+#chronologyOutput strong {
+  color: #000000;
+  font-weight: bold;
+}
+
+#chronologyOutput hr {
+  border: none;
+  border-top: 1px solid #cccccc;
+  margin: 18pt 0;
+}
+
+/* Tables - Legal Document Style */
+#chronologyOutput table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12pt 0;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 10pt;
+}
+
+#chronologyOutput th,
+#chronologyOutput td {
+  border: 1px solid #000000;
+  padding: 6pt 8pt;
+  text-align: left;
+  vertical-align: top;
+}
+
+#chronologyOutput th {
+  background: #f0f0f0;
+  color: #000000;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 9pt;
+  letter-spacing: 0.02em;
+}
+
+#chronologyOutput tr:nth-child(even) {
+  background: #fafafa;
+}
+
+#chronologyOutput tr:hover {
+  background: #f5f5f5;
+}
+
+/* Citations - Legal Document Style */
+.citation {
+  color: #0066cc;
+  background: #e6f0ff;
+  padding: 1pt 4pt;
+  border-radius: 2px;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 10pt;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* Scrollbar - Document view */
+#chronologyOutput::-webkit-scrollbar {
+  width: 12px;
+}
+
+#chronologyOutput::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+#chronologyOutput::-webkit-scrollbar-thumb {
+  background: #cccccc;
+  border-radius: 6px;
+  border: 2px solid #f0f0f0;
+}
+
+#chronologyOutput::-webkit-scrollbar-thumb:hover {
+  background: #999999;
+}
+
+/* Scrollbar - Log view */
+#logContent::-webkit-scrollbar {
+  width: 8px;
+}
+
+#logContent::-webkit-scrollbar-track {
+  background: var(--cv-slate-900);
+}
+
+#logContent::-webkit-scrollbar-thumb {
+  background: var(--cv-slate-700);
+  border-radius: 4px;
+}
+
+#logContent::-webkit-scrollbar-thumb:hover {
+  background: var(--cv-slate-600);
+}
+
+/* ==========================================
+   Responsive
+   ========================================== */
+
+/* ==========================================
+   Chronology Table (HTML)
+   ========================================== */
+
+.chronology-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin: 1rem 0;
+  background: #ffffff;
+  color: #000000;
+}
+
+.chronology-table th {
+  background: #f0f0f0;
+  color: #000000;
+  padding: 0.5rem;
+  text-align: left;
+  font-weight: 600;
+  border: 1px solid #000000;
+  position: sticky;
+  top: 0;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.chronology-table td {
+  padding: 0.5rem;
+  border: 1px solid #cccccc;
+  vertical-align: top;
+  background: #ffffff;
+  color: #000000;
+}
+
+.chronology-table tbody tr:nth-child(even) td {
+  background: #f5f5f5;
+}
+
+.chronology-table tbody tr:hover td {
+  background: #f5f5f5;
+}
+
+.chronology-table td:nth-child(1) { /* Date */
+  white-space: nowrap;
+  width: 90px;
+}
+
+.chronology-table td:nth-child(2) { /* Provider */
+  width: 150px;
+}
+
+.chronology-table td:nth-child(3) { /* Facility */
+  width: 150px;
+}
+
+.chronology-table td:nth-child(4) { /* Type */
+  width: 90px;
+}
+
+.chronology-table td:nth-child(5) { /* Occurrence/Treatment */
+  min-width: 300px;
+  line-height: 1.5;
+}
+
+.chronology-table td:nth-child(6) { /* Source */
+  white-space: nowrap;
+  width: 100px;
+}
+
+/* Review Required - Extraction Failure Indicator */
+.review-required {
+  background: #fff3cd;
+  border-left: 3px solid #f59e0b;
+  padding: 8px 12px;
+  display: block;
+  color: #856404;
+  font-size: 0.9em;
+}
+
+.review-required strong {
+  color: #856404;
+}
+
+/* ==========================================
+   Responsive
+   ========================================== */
+
+@media (max-width: 768px) {
+  header {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .header-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .step-content {
+    padding: 1rem;
+  }
+
+  #dropZone {
+    padding: 2rem 1.5rem;
+  }
+
+  .chronology-container {
+    padding: 1rem;
+  }
+
+  #chronologyOutput {
+    padding: 1rem;
+  }
+}

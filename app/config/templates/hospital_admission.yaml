@@ -1,0 +1,229 @@
+# Hospital Admission Extraction Template
+# For: Inpatient Records, Discharge Summaries, H&P, Emergency Department
+#
+# Version: 1.0.0
+
+visit_type: "hospital_admission"
+description: "Inpatient hospital records, discharge summaries, and ED visits"
+
+# User prompt specific to hospital admissions
+user_prompt: |
+  Parse the following hospital/inpatient records and extract all admissions.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH ADMISSION:**
+  - Admission date
+  - Discharge date (if applicable)
+  - Attending physician
+  - Facility name
+  - Admission type (Inpatient, ED, Observation)
+  - Chief complaint/reason for admission
+  - History of present illness
+  - Admission diagnoses
+  - Discharge diagnoses
+  - Hospital course summary
+  - Procedures performed during admission
+  - Discharge disposition
+  - Discharge medications/instructions
+
+  **OUTPUT:** Return JSON array following the hospital_admission schema.
+
+# Fields specific to hospital admissions
+fields:
+  admission_date:
+    type: date
+    required: true
+    label: "Admit"
+    description: "Date of admission"
+
+  discharge_date:
+    type: date
+    required: false
+    label: "D/C"
+    description: "Date of discharge"
+
+  admission_type:
+    type: enum
+    required: true
+    label: "Type"
+    values:
+      - "Inpatient"
+      - "Emergency Department"
+      - "Observation"
+      - "ICU"
+      - "Psychiatric"
+    description: "Type of hospital admission"
+
+  chief_complaint:
+    type: text
+    required: true
+    label: "CC"
+    description: "Reason for admission"
+
+  history_present_illness:
+    type: text
+    required: false
+    label: "HPI"
+    description: "History of present illness"
+
+  admission_diagnoses:
+    type: array
+    items: string
+    required: true
+    label: "Admit Dx"
+    description: "Diagnoses at admission"
+
+  discharge_diagnoses:
+    type: array
+    items: string
+    required: false
+    label: "D/C Dx"
+    description: "Diagnoses at discharge"
+
+  hospital_course:
+    type: text
+    required: false
+    label: "Course"
+    description: "Summary of hospital course"
+
+  procedures:
+    type: array
+    items: string
+    required: false
+    label: "Procedures"
+    description: "Procedures performed during admission"
+
+  discharge_disposition:
+    type: string
+    required: false
+    label: "Disposition"
+    description: "Discharge destination (Home, SNF, Rehab, etc.)"
+
+  length_of_stay:
+    type: string
+    required: false
+    label: "LOS"
+    description: "Length of stay in days"
+
+# Output labels for occurrence_treatment column
+output_labels: ["Type", "CC", "Admit Dx", "Course", "D/C Dx", "Disposition"]
+
+# Formatting example
+output_example: |
+  Type: Inpatient (3 days)
+  CC: Chest pain, shortness of breath
+  Admit Dx: Acute NSTEMI, CHF exacerbation
+  Course: Cardiac cath with stent to LAD, diuresis for CHF
+  D/C Dx: CAD s/p PCI, CHF improved
+  Disposition: Home with cardiac rehab
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      DISCHARGE SUMMARY
+      Facility: Baptist Medical Center
+      Attending: Robert Martinez, MD
+
+      ADMISSION DATE: 05/12/2022
+      DISCHARGE DATE: 05/15/2022
+      LENGTH OF STAY: 3 days
+
+      ADMISSION DIAGNOSIS:
+      1. Acute non-ST elevation myocardial infarction
+      2. Congestive heart failure exacerbation
+
+      DISCHARGE DIAGNOSIS:
+      1. Coronary artery disease, status post PCI with DES to LAD
+      2. Congestive heart failure, improved
+      3. Type 2 diabetes mellitus
+      4. Hypertension
+
+      CHIEF COMPLAINT: Chest pain and shortness of breath
+
+      HOSPITAL COURSE: Patient presented with 2 days of substernal chest
+      pressure and progressive dyspnea. Troponins elevated. Echo showed
+      EF 35%. Cardiac catheterization revealed 90% LAD stenosis, treated
+      with drug-eluting stent. Patient diuresed with improvement in
+      symptoms. Started on GDMT for CHF.
+
+      PROCEDURES:
+      1. Left heart catheterization with PCI
+      2. Echocardiogram
+      3. Chest X-ray
+
+      DISCHARGE DISPOSITION: Home with outpatient cardiac rehabilitation
+      FOLLOW-UP: Cardiology in 2 weeks
+    output:
+      date: "05/12/2022"
+      provider: "Robert Martinez, MD"
+      facility: "Baptist Medical Center"
+      exhibit_reference: "7F@201"
+      page_range: "201-215"
+      visit_type: "hospital_admission"
+      admission_date: "05/12/2022"
+      discharge_date: "05/15/2022"
+      admission_type: "Inpatient"
+      chief_complaint: "Chest pain and shortness of breath"
+      admission_diagnoses:
+        - "Acute non-ST elevation myocardial infarction"
+        - "Congestive heart failure exacerbation"
+      discharge_diagnoses:
+        - "Coronary artery disease, status post PCI with DES to LAD"
+        - "Congestive heart failure, improved"
+        - "Type 2 diabetes mellitus"
+        - "Hypertension"
+      hospital_course: "Patient presented with 2 days of substernal chest pressure and progressive dyspnea. Troponins elevated. Echo showed EF 35%. Cardiac catheterization revealed 90% LAD stenosis, treated with drug-eluting stent. Patient diuresed with improvement in symptoms. Started on GDMT for CHF."
+      procedures:
+        - "Left heart catheterization with PCI"
+        - "Echocardiogram"
+        - "Chest X-ray"
+      discharge_disposition: "Home with outpatient cardiac rehabilitation"
+      length_of_stay: "3 days"
+
+  - input: |
+      EMERGENCY DEPARTMENT REPORT
+      Date: 11/23/2021
+      Facility: Memorial ER
+      Provider: Lisa Wong, MD
+
+      CHIEF COMPLAINT: Fall with head injury
+
+      HPI: 72 y/o female brought in by EMS after witnessed fall at home.
+      Patient tripped over rug, struck head on coffee table. Brief LOC
+      per family. GCS 15 on arrival. Denies neck pain. On Eliquis for AFib.
+
+      PHYSICAL EXAM: GCS 15. 3cm laceration right forehead. PERRL.
+      C-spine non-tender. Neuro intact.
+
+      ED COURSE: CT head negative for ICH. CT c-spine negative. Laceration
+      repaired with 5 sutures. Observed for 4 hours, remained stable.
+
+      DIAGNOSIS:
+      1. Head laceration
+      2. Fall, mechanical
+      3. Atrial fibrillation on anticoagulation
+
+      DISPOSITION: Discharged home with family. Return precautions given.
+    output:
+      date: "11/23/2021"
+      provider: "Lisa Wong, MD"
+      facility: "Memorial ER"
+      exhibit_reference: "15F@45"
+      page_range: "45-48"
+      visit_type: "hospital_admission"
+      admission_date: "11/23/2021"
+      admission_type: "Emergency Department"
+      chief_complaint: "Fall with head injury"
+      history_present_illness: "72 y/o female brought in by EMS after witnessed fall at home. Patient tripped over rug, struck head on coffee table. Brief LOC per family. GCS 15 on arrival. Denies neck pain. On Eliquis for AFib."
+      admission_diagnoses:
+        - "Head laceration"
+        - "Fall, mechanical"
+        - "Atrial fibrillation on anticoagulation"
+      hospital_course: "CT head negative for ICH. CT c-spine negative. Laceration repaired with 5 sutures. Observed for 4 hours, remained stable."
+      procedures:
+        - "CT head"
+        - "CT c-spine"
+        - "Laceration repair"
+      discharge_disposition: "Discharged home with family"

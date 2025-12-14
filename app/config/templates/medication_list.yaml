@@ -1,0 +1,494 @@
+# Medication List Extraction Template
+# For: Medication reconciliation records, pharmacy printouts, medication histories
+#
+# Version: 1.0.0
+#
+# Note: Medication lists appear frequently in medical records and provide
+# critical evidence of treatment history, compliance, and side effects.
+# These are often formatted as tables or lists distinct from progress notes.
+
+visit_type: "medication_list"
+description: "Medication reconciliation, pharmacy records, and medication histories"
+
+# User prompt specific to medication list extraction
+user_prompt: |
+  Parse the following medication list/reconciliation and extract all medications
+  with their details.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH MEDICATION:**
+  - Medication name (brand and/or generic)
+  - Dosage/Strength
+  - Frequency/Instructions
+  - Route (oral, topical, injection, etc.)
+  - Prescribing provider
+  - Start date (if available)
+  - End date or "current" if ongoing
+  - Indication/Reason for use
+  - Status (active, discontinued, on hold)
+
+  **ALSO EXTRACT:**
+  - Date of medication reconciliation
+  - Provider/Pharmacist who reviewed
+  - Allergies documented
+  - Any noted side effects or adverse reactions
+  - Medication changes noted
+
+  **OUTPUT:** Return JSON array following the medication_list schema.
+
+# Fields specific to medication lists
+fields:
+  reconciliation_date:
+    type: date
+    required: true
+    label: "Date"
+    description: "Date of medication list/reconciliation"
+
+  reconciliation_source:
+    type: enum
+    required: true
+    label: "Source"
+    values:
+      - "Provider Reconciliation"
+      - "Pharmacy Printout"
+      - "Hospital Discharge"
+      - "Patient Reported"
+      - "EHR Medication List"
+    description: "Source of medication information"
+
+  reviewed_by:
+    type: string
+    required: false
+    label: "Reviewed By"
+    description: "Provider or pharmacist who reviewed/reconciled medications"
+
+  allergies:
+    type: array
+    items: object
+    required: false
+    label: "Allergies"
+    item_fields:
+      allergen: string
+      reaction: string
+      severity: string
+    description: "Documented medication allergies"
+
+  active_medications:
+    type: array
+    items: object
+    required: true
+    label: "Active Meds"
+    item_fields:
+      medication_name: string
+      generic_name: string
+      brand_name: string
+      strength: string
+      dosage_form: string
+      frequency: string
+      route: string
+      prescriber: string
+      start_date: date
+      indication: string
+      special_instructions: string
+    description: "Currently active medications"
+
+  discontinued_medications:
+    type: array
+    items: object
+    required: false
+    label: "Discontinued"
+    item_fields:
+      medication_name: string
+      strength: string
+      discontinue_date: date
+      reason_discontinued: string
+      prescriber: string
+    description: "Recently discontinued medications"
+
+  prn_medications:
+    type: array
+    items: object
+    required: false
+    label: "PRN Meds"
+    item_fields:
+      medication_name: string
+      strength: string
+      frequency: string
+      indication: string
+      max_dose: string
+    description: "As-needed medications"
+
+  medication_changes:
+    type: array
+    items: object
+    required: false
+    label: "Changes"
+    item_fields:
+      medication: string
+      change_type: string
+      previous: string
+      new: string
+      reason: string
+      date: date
+    description: "Medication changes noted"
+
+  side_effects_noted:
+    type: array
+    items: object
+    required: false
+    label: "Side Effects"
+    item_fields:
+      medication: string
+      side_effect: string
+      severity: string
+      action_taken: string
+    description: "Documented side effects or adverse reactions"
+
+  compliance_notes:
+    type: text
+    required: false
+    label: "Compliance"
+    description: "Notes about medication compliance/adherence"
+
+  total_medication_count:
+    type: integer
+    required: false
+    label: "Med Count"
+    description: "Total number of medications"
+
+# Output labels for occurrence_treatment column
+output_labels: ["Source", "Med Count", "Active Meds", "Changes", "Side Effects"]
+
+# Formatting example
+output_example: |
+  Source: Provider Reconciliation
+  Reviewed By: Dr. Smith, MD
+  Allergies: Penicillin (rash), Sulfa (hives)
+  Med Count: 8 active medications
+  Active Meds: Gabapentin 300mg TID, Cymbalta 60mg daily, Lisinopril 10mg daily...
+  Changes: Gabapentin increased from 300mg BID to TID
+  Side Effects: Gabapentin - drowsiness, dizziness
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      MEDICATION RECONCILIATION
+      Date: 04/20/2023
+      Patient: John Doe
+      Reviewed by: Maria Santos, PharmD
+
+      ALLERGIES:
+      - Penicillin - Rash, Hives (Moderate)
+      - Sulfa drugs - Anaphylaxis (Severe)
+      - Codeine - Nausea/Vomiting (Mild)
+
+      ACTIVE MEDICATIONS:
+
+      1. Gabapentin (Neurontin) 300mg capsule
+         Take 1 capsule by mouth three times daily
+         Prescriber: Dr. Roberts (Orthopedics)
+         Start Date: 01/15/2022
+         Indication: Nerve pain, radiculopathy
+         ** DOSE INCREASED 04/20/2023 from 300mg BID to TID **
+
+      2. Duloxetine (Cymbalta) 60mg capsule
+         Take 1 capsule by mouth daily in morning
+         Prescriber: Dr. Wilson (Primary Care)
+         Start Date: 06/01/2021
+         Indication: Depression, fibromyalgia pain
+
+      3. Lisinopril 10mg tablet
+         Take 1 tablet by mouth daily
+         Prescriber: Dr. Wilson (Primary Care)
+         Start Date: 03/2018
+         Indication: Hypertension
+
+      4. Metformin 500mg tablet
+         Take 1 tablet by mouth twice daily with meals
+         Prescriber: Dr. Wilson (Primary Care)
+         Start Date: 09/2019
+         Indication: Type 2 diabetes
+
+      5. Omeprazole (Prilosec) 20mg capsule
+         Take 1 capsule by mouth daily before breakfast
+         Prescriber: Dr. Wilson (Primary Care)
+         Start Date: 11/2020
+         Indication: GERD
+
+      6. Cyclobenzaprine (Flexeril) 10mg tablet
+         Take 1 tablet by mouth at bedtime
+         Prescriber: Dr. Roberts (Orthopedics)
+         Start Date: 01/15/2022
+         Indication: Muscle spasms
+
+      PRN MEDICATIONS:
+
+      7. Tramadol 50mg tablet
+         Take 1-2 tablets by mouth every 6 hours as needed for pain
+         Max: 400mg/day
+         Prescriber: Dr. Roberts (Orthopedics)
+         Start Date: 03/2022
+         Indication: Breakthrough pain
+
+      8. Alprazolam (Xanax) 0.5mg tablet
+         Take 1 tablet by mouth as needed for anxiety
+         Max: 3 tablets/day
+         Prescriber: Dr. Lee (Psychiatry)
+         Start Date: 08/2022
+         Indication: Panic attacks
+
+      RECENTLY DISCONTINUED:
+
+      - Naproxen 500mg BID
+        Discontinued: 03/15/2023
+        Reason: GI upset, started omeprazole, switched to tramadol PRN
+
+      - Amitriptyline 25mg at bedtime
+        Discontinued: 02/01/2023
+        Reason: Excessive sedation, switched to gabapentin increase
+
+      SIDE EFFECTS NOTED:
+      - Gabapentin: Drowsiness, dizziness (tolerable)
+      - Duloxetine: Mild nausea (resolved after 2 weeks)
+      - Metformin: GI upset (improved with food)
+      - Tramadol: Constipation (managing with fiber)
+
+      COMPLIANCE NOTES:
+      Patient reports good compliance with scheduled medications.
+      Occasionally forgets afternoon gabapentin dose.
+      Using pill organizer as recommended.
+
+      Total Active Medications: 8
+    output:
+      date: "04/20/2023"
+      provider: "Maria Santos, PharmD"
+      facility: "Medication Reconciliation"
+      exhibit_reference: "6F@112"
+      page_range: "112-114"
+      visit_type: "medication_list"
+      reconciliation_date: "04/20/2023"
+      reconciliation_source: "Provider Reconciliation"
+      reviewed_by: "Maria Santos, PharmD"
+      allergies:
+        - allergen: "Penicillin"
+          reaction: "Rash, Hives"
+          severity: "Moderate"
+        - allergen: "Sulfa drugs"
+          reaction: "Anaphylaxis"
+          severity: "Severe"
+        - allergen: "Codeine"
+          reaction: "Nausea/Vomiting"
+          severity: "Mild"
+      active_medications:
+        - medication_name: "Gabapentin"
+          generic_name: "Gabapentin"
+          brand_name: "Neurontin"
+          strength: "300mg"
+          dosage_form: "capsule"
+          frequency: "Three times daily"
+          route: "Oral"
+          prescriber: "Dr. Roberts (Orthopedics)"
+          start_date: "01/15/2022"
+          indication: "Nerve pain, radiculopathy"
+          special_instructions: "Dose increased 04/20/2023 from BID to TID"
+        - medication_name: "Duloxetine"
+          generic_name: "Duloxetine"
+          brand_name: "Cymbalta"
+          strength: "60mg"
+          dosage_form: "capsule"
+          frequency: "Daily in morning"
+          route: "Oral"
+          prescriber: "Dr. Wilson (Primary Care)"
+          start_date: "06/01/2021"
+          indication: "Depression, fibromyalgia pain"
+        - medication_name: "Lisinopril"
+          generic_name: "Lisinopril"
+          strength: "10mg"
+          dosage_form: "tablet"
+          frequency: "Daily"
+          route: "Oral"
+          prescriber: "Dr. Wilson (Primary Care)"
+          start_date: "03/2018"
+          indication: "Hypertension"
+        - medication_name: "Metformin"
+          generic_name: "Metformin"
+          strength: "500mg"
+          dosage_form: "tablet"
+          frequency: "Twice daily with meals"
+          route: "Oral"
+          prescriber: "Dr. Wilson (Primary Care)"
+          start_date: "09/2019"
+          indication: "Type 2 diabetes"
+        - medication_name: "Omeprazole"
+          generic_name: "Omeprazole"
+          brand_name: "Prilosec"
+          strength: "20mg"
+          dosage_form: "capsule"
+          frequency: "Daily before breakfast"
+          route: "Oral"
+          prescriber: "Dr. Wilson (Primary Care)"
+          start_date: "11/2020"
+          indication: "GERD"
+        - medication_name: "Cyclobenzaprine"
+          generic_name: "Cyclobenzaprine"
+          brand_name: "Flexeril"
+          strength: "10mg"
+          dosage_form: "tablet"
+          frequency: "At bedtime"
+          route: "Oral"
+          prescriber: "Dr. Roberts (Orthopedics)"
+          start_date: "01/15/2022"
+          indication: "Muscle spasms"
+      prn_medications:
+        - medication_name: "Tramadol"
+          strength: "50mg"
+          frequency: "Every 6 hours as needed for pain"
+          indication: "Breakthrough pain"
+          max_dose: "400mg/day"
+        - medication_name: "Alprazolam (Xanax)"
+          strength: "0.5mg"
+          frequency: "As needed for anxiety"
+          indication: "Panic attacks"
+          max_dose: "3 tablets/day"
+      discontinued_medications:
+        - medication_name: "Naproxen"
+          strength: "500mg BID"
+          discontinue_date: "03/15/2023"
+          reason_discontinued: "GI upset, started omeprazole, switched to tramadol PRN"
+        - medication_name: "Amitriptyline"
+          strength: "25mg at bedtime"
+          discontinue_date: "02/01/2023"
+          reason_discontinued: "Excessive sedation, switched to gabapentin increase"
+      medication_changes:
+        - medication: "Gabapentin"
+          change_type: "Dose increase"
+          previous: "300mg BID"
+          new: "300mg TID"
+          reason: "Inadequate pain control"
+          date: "04/20/2023"
+      side_effects_noted:
+        - medication: "Gabapentin"
+          side_effect: "Drowsiness, dizziness"
+          severity: "Tolerable"
+        - medication: "Duloxetine"
+          side_effect: "Mild nausea"
+          severity: "Resolved after 2 weeks"
+        - medication: "Metformin"
+          side_effect: "GI upset"
+          severity: "Improved with food"
+        - medication: "Tramadol"
+          side_effect: "Constipation"
+          severity: "Managing with fiber"
+      compliance_notes: "Patient reports good compliance with scheduled medications. Occasionally forgets afternoon gabapentin dose. Using pill organizer as recommended."
+      total_medication_count: 8
+
+  - input: |
+      PHARMACY MEDICATION HISTORY
+      Printed: 05/01/2023
+      Pharmacy: CVS #12345
+      Patient: Jane Smith  DOB: 05/15/1970
+
+      CURRENT PRESCRIPTIONS:
+
+      Rx#123456 - OXYCODONE-ACETAMINOPHEN 5-325MG TAB
+      Qty: 60  Days Supply: 30  Refills: 0
+      Sig: Take 1 tablet by mouth every 6 hours as needed
+      Prescriber: JOHN ROBERTS MD  DEA#: BR1234567
+      Last Filled: 04/15/2023
+      Status: ACTIVE
+
+      Rx#123457 - GABAPENTIN 300MG CAP
+      Qty: 90  Days Supply: 30  Refills: 3
+      Sig: Take 1 capsule by mouth three times daily
+      Prescriber: JOHN ROBERTS MD
+      Last Filled: 04/15/2023
+      Status: ACTIVE
+
+      Rx#123458 - TIZANIDINE 4MG TAB
+      Qty: 60  Days Supply: 30  Refills: 5
+      Sig: Take 1 tablet by mouth twice daily
+      Prescriber: JOHN ROBERTS MD
+      Last Filled: 04/15/2023
+      Status: ACTIVE
+
+      Rx#123459 - SERTRALINE 100MG TAB
+      Qty: 30  Days Supply: 30  Refills: 5
+      Sig: Take 1 tablet by mouth daily
+      Prescriber: SARAH WILSON MD
+      Last Filled: 04/20/2023
+      Status: ACTIVE
+
+      DISCONTINUED/EXPIRED:
+
+      Rx#123400 - HYDROCODONE-ACETAMIN 5-325 TAB
+      Last Filled: 01/10/2023
+      Status: DISCONTINUED - Switched to oxycodone
+
+      Rx#123401 - MELOXICAM 15MG TAB
+      Last Filled: 02/01/2023
+      Status: DISCONTINUED
+
+      ALLERGIES ON FILE:
+      MORPHINE - Itching
+      NSAIDS - GI Bleeding
+    output:
+      date: "05/01/2023"
+      provider: "CVS Pharmacy #12345"
+      facility: "Pharmacy Record"
+      exhibit_reference: "8F@55"
+      page_range: "55-56"
+      visit_type: "medication_list"
+      reconciliation_date: "05/01/2023"
+      reconciliation_source: "Pharmacy Printout"
+      allergies:
+        - allergen: "Morphine"
+          reaction: "Itching"
+          severity: "Not specified"
+        - allergen: "NSAIDs"
+          reaction: "GI Bleeding"
+          severity: "Not specified"
+      active_medications:
+        - medication_name: "Oxycodone-Acetaminophen"
+          strength: "5-325mg"
+          dosage_form: "tablet"
+          frequency: "Every 6 hours as needed"
+          route: "Oral"
+          prescriber: "John Roberts, MD"
+          indication: "Pain"
+          special_instructions: "Qty 60, 30 day supply, no refills"
+        - medication_name: "Gabapentin"
+          strength: "300mg"
+          dosage_form: "capsule"
+          frequency: "Three times daily"
+          route: "Oral"
+          prescriber: "John Roberts, MD"
+          indication: "Nerve pain"
+          special_instructions: "Qty 90, 3 refills remaining"
+        - medication_name: "Tizanidine"
+          strength: "4mg"
+          dosage_form: "tablet"
+          frequency: "Twice daily"
+          route: "Oral"
+          prescriber: "John Roberts, MD"
+          indication: "Muscle spasms"
+          special_instructions: "5 refills remaining"
+        - medication_name: "Sertraline"
+          strength: "100mg"
+          dosage_form: "tablet"
+          frequency: "Daily"
+          route: "Oral"
+          prescriber: "Sarah Wilson, MD"
+          indication: "Depression"
+          special_instructions: "5 refills remaining"
+      discontinued_medications:
+        - medication_name: "Hydrocodone-Acetaminophen"
+          strength: "5-325mg"
+          discontinue_date: "01/10/2023"
+          reason_discontinued: "Switched to oxycodone"
+        - medication_name: "Meloxicam"
+          strength: "15mg"
+          discontinue_date: "02/01/2023"
+          reason_discontinued: "Not specified"
+      total_medication_count: 4

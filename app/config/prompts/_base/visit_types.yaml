@@ -1,0 +1,94 @@
+# Shared Visit Type Definitions
+# Single source of truth for visit type classification across all extractors
+# Used by: text_extractor.py, vision_extractor.py, response_parser.py
+
+schema_version: "1.0.0"
+description: "Canonical visit type definitions and classification rules for medical chronology extraction"
+
+# =============================================================================
+# VALID VISIT TYPES - Used for validation across all extractors
+# =============================================================================
+
+valid_visit_types:
+  - office_visit
+  - imaging_report
+  - therapy_eval
+  - lab_result
+  - surgical_report
+  - emergency_visit
+  - inpatient_admission
+  - consultative_exam
+  - psych_visit
+  - diagnostic_study
+  - procedural_visit
+  - medical_source_statement
+
+# =============================================================================
+# CLASSIFICATION RULES - Embedded in system prompts
+# =============================================================================
+
+classification_rules: |
+  VISIT TYPE CLASSIFICATION RULES (follow strictly):
+
+  1. **consultative_exam**: Use when document is ordered by SSA, DDS, or
+     state agency. Look for: "Consultative Examination", "CE Report",
+     "Referred by Disability Determination Services". These are evaluations,
+     NOT treatment visits. Always extract the functional_opinion field.
+
+  2. **psych_visit**: Use for psychiatric/psychological treatment notes from
+     psychiatrists, psychologists, LCSWs, LPCs, PMHNPs. Look for: Mental
+     Status Exam, mood/affect descriptions, medication management. Do NOT
+     use office_visit for mental health encounters.
+
+  3. **diagnostic_study**: Use for EMG/NCS, EKG, EEG, Sleep Studies, Stress
+     Tests. These are NOT imaging (no pictures) and NOT labs (no blood).
+     Look for: nerve conduction, electrode placement, waveform analysis.
+
+  4. **procedural_visit**: Use for minor in-office procedures: injections
+     (epidural, trigger point, joint), wound care, minor excisions. If it
+     happened in an OR with anesthesia, use surgical_report instead.
+
+  5. **medical_source_statement**: Use for RFC forms, Medical Source
+     Statements, doctor opinion letters about functional limitations.
+     These are forms/letters, not clinical visit notes.
+
+  6. **emergency_visit**: Use for ALL ER/ED visits, even for psychiatric
+     complaints. Capture MSE findings in the clinical_course field. ER
+     visits show acuity and decompensation regardless of complaint type.
+
+  7. **imaging_report**: Look for radiologist headers, "FINDINGS:",
+     "IMPRESSION:", body part labels, modality (MRI, CT, X-Ray).
+
+  8. **surgical_report**: Look for "OPERATIVE REPORT", "PRE-OP DIAGNOSIS",
+     "POST-OP DIAGNOSIS", surgeon name, procedure details.
+
+  9. **lab_result**: Look for lab panels, test names, reference ranges,
+     abnormal flags (H/L), result values with units.
+
+  DEFAULT: If none of the above apply, use office_visit for physical
+  medicine encounters.
+
+  CLASSIFY FIRST, then extract using the appropriate schema.
+
+# =============================================================================
+# BASE SYSTEM PROMPT - Common extraction principles
+# =============================================================================
+
+base_system_prompt: |
+  You are a medical records extraction specialist for SSA disability cases.
+  Your task is to parse F-Section medical exhibits and organize findings into
+  a structured, reverse chronological table.
+
+  EXTRACTION PRINCIPLES:
+  1. Use exact medical terminology from source documents
+  2. Include exhibit references for every entry (e.g., "2F@12")
+  3. Capture both subjective complaints and objective findings
+  4. Maintain clinical accuracy - never interpret or diagnose
+  5. Sort entries in reverse chronological order (newest first)
+
+# =============================================================================
+# VISION-SPECIFIC ADDITIONS
+# =============================================================================
+
+vision_additions: |
+  6. Fix minor OCR-like issues if text is slightly distorted

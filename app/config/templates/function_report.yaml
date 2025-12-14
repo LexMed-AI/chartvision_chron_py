@@ -1,0 +1,495 @@
+# Function Report (SSA-3373) Extraction Template
+# For: E-Section Function Report - Adult (SSA-3373)
+#
+# Version: 1.0.0
+#
+# Note: SSA-3373 is completed by claimants to describe how their conditions
+# affect daily activities. Contains critical subjective evidence about
+# functional limitations in ADLs, social functioning, and concentration.
+
+visit_type: "function_report"
+description: "SSA-3373 Function Report - Adult describing activities of daily living and functional limitations"
+
+# User prompt specific to function report extraction
+user_prompt: |
+  Parse the following SSA-3373 Function Report and extract all reported
+  functional limitations and activities of daily living information.
+
+  **DOCUMENT:**
+  {medical_content}
+
+  **EXTRACT THE FOLLOWING:**
+
+  Daily Activities:
+  - Morning routine / getting ready
+  - Meal preparation
+  - House and yard work
+  - Personal care (bathing, dressing, grooming)
+  - Sleep patterns
+
+  Social Functioning:
+  - Time spent with others
+  - Activities with others
+  - Problems getting along with others
+  - Difficulty with authority figures
+
+  Concentration/Memory:
+  - Ability to follow instructions
+  - Ability to complete tasks
+  - Memory problems
+  - Handling stress/changes
+
+  Physical Functioning:
+  - Walking limitations
+  - Sitting limitations
+  - Standing limitations
+  - Lifting/carrying limitations
+  - Use of assistive devices
+
+  Medications and Side Effects
+
+  **OUTPUT:** Return JSON array following the function_report schema.
+
+# Fields specific to function reports
+fields:
+  report_date:
+    type: date
+    required: true
+    label: "Date"
+    description: "Date function report was completed"
+
+  completed_by:
+    type: enum
+    required: true
+    label: "Completed By"
+    values:
+      - "Claimant"
+      - "Third Party"
+      - "Representative"
+    description: "Who completed the function report"
+
+  relationship_if_third_party:
+    type: string
+    required: false
+    label: "Relationship"
+    description: "If third party, relationship to claimant"
+
+  conditions_reported:
+    type: array
+    items: string
+    required: true
+    label: "Conditions"
+    description: "Medical conditions claimant reports limit functioning"
+
+  # Daily Activities
+  daily_activities:
+    type: object
+    required: true
+    label: "Daily Activities"
+    fields:
+      morning_routine:
+        type: text
+        description: "What claimant does from waking until going to bed"
+      sleep_patterns:
+        type: text
+        description: "Sleep habits, insomnia, naps"
+      personal_care:
+        type: object
+        fields:
+          bathing: string
+          dressing: string
+          grooming: string
+          toileting: string
+          feeding: string
+        description: "Ability to perform personal care tasks"
+      personal_care_limitations:
+        type: text
+        description: "Specific limitations or help needed with personal care"
+    description: "Daily living activities and limitations"
+
+  meal_preparation:
+    type: object
+    required: false
+    label: "Meals"
+    fields:
+      can_prepare_meals: boolean
+      types_of_meals: string
+      frequency: string
+      limitations: string
+    description: "Meal preparation abilities and limitations"
+
+  house_yard_work:
+    type: object
+    required: false
+    label: "Housework"
+    fields:
+      chores_can_do: array
+      chores_cannot_do: array
+      frequency: string
+      help_needed: string
+    description: "House and yard work abilities"
+
+  # Going Out / Transportation
+  going_out:
+    type: object
+    required: false
+    label: "Going Out"
+    fields:
+      goes_out_alone: boolean
+      how_often: string
+      can_drive: boolean
+      transportation_used: array
+      limitations: string
+    description: "Ability to leave home and transportation"
+
+  shopping:
+    type: object
+    required: false
+    label: "Shopping"
+    fields:
+      can_shop: boolean
+      how_often: string
+      time_spent: string
+      limitations: string
+    description: "Shopping abilities and limitations"
+
+  money_management:
+    type: object
+    required: false
+    label: "Money"
+    fields:
+      can_handle_money: boolean
+      can_pay_bills: boolean
+      can_use_checkbook: boolean
+      limitations: string
+    description: "Ability to manage money"
+
+  # Social Functioning
+  social_functioning:
+    type: object
+    required: true
+    label: "Social"
+    fields:
+      hobbies_interests: array
+      time_with_others: string
+      activities_with_others: string
+      problems_getting_along: boolean
+      problems_with_whom: string
+      avoids_people: boolean
+    description: "Social activities and relationships"
+
+  # Concentration/Cognitive
+  concentration_memory:
+    type: object
+    required: true
+    label: "Concentration"
+    fields:
+      following_instructions:
+        type: enum
+        values: ["No Difficulty", "Some Difficulty", "Serious Difficulty"]
+      completing_tasks: boolean
+      attention_span: string
+      finishing_what_started: boolean
+      memory_problems: array
+      handling_stress: string
+      handling_changes: string
+    description: "Concentration, memory, and cognitive abilities"
+
+  # Physical Limitations
+  physical_limitations:
+    type: object
+    required: true
+    label: "Physical"
+    fields:
+      walking:
+        type: object
+        fields:
+          can_walk: boolean
+          distance: string
+          time_before_rest: string
+      standing:
+        type: object
+        fields:
+          can_stand: boolean
+          duration: string
+      sitting:
+        type: object
+        fields:
+          can_sit: boolean
+          duration: string
+      lifting:
+        type: string
+      climbing_stairs: string
+      using_hands: string
+      seeing: string
+      hearing: string
+      speaking: string
+    description: "Physical limitations reported"
+
+  assistive_devices:
+    type: array
+    items: object
+    required: false
+    label: "Devices"
+    item_fields:
+      device: string
+      prescribed_by: string
+      frequency_used: string
+    description: "Assistive devices used"
+
+  medications_reported:
+    type: array
+    items: object
+    required: false
+    label: "Medications"
+    item_fields:
+      medication: string
+      condition_treated: string
+      side_effects: string
+    description: "Medications and side effects reported"
+
+  additional_remarks:
+    type: text
+    required: false
+    label: "Remarks"
+    description: "Additional information provided by claimant"
+
+# Output labels for occurrence_treatment column
+output_labels: ["Completed By", "Conditions", "Daily Activities", "Physical", "Social", "Concentration"]
+
+# Formatting example
+output_example: |
+  Completed By: Claimant
+  Conditions: Back pain, depression, fibromyalgia
+  Daily Activities: Needs help with bathing, cannot do housework, sleeps poorly
+  Physical: Walk 1 block before rest, stand 15 min, sit 30 min, lift 5 lbs
+  Social: Rarely leaves home, avoids people, no hobbies
+  Concentration: Difficulty following instructions, forgets tasks, poor stress handling
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      FUNCTION REPORT - ADULT (SSA-3373)
+      Date Completed: 03/10/2023
+      Completed by: CLAIMANT
+
+      SECTION A - GENERAL INFORMATION
+      Name: Jane Smith
+      Illnesses, injuries, or conditions that limit your ability to work:
+      - Degenerative disc disease
+      - Fibromyalgia
+      - Depression
+      - Anxiety
+
+      SECTION B - INFORMATION ABOUT DAILY ACTIVITIES
+
+      1. Describe what you do from the time you wake up until going to bed:
+      Wake up around 8am in pain. Take medications. Rest on couch most of day.
+      Try to do small tasks like dishes. Pain increases through day. Go to bed
+      early (8pm) but don't sleep well. Wake up multiple times with pain.
+
+      2. Do you take care of anyone else? No
+
+      3. Do you take care of pets? Yes, 2 cats. Husband helps with litter box.
+
+      4. Does your condition affect sleep? Yes
+      Explain: Only sleep 4-5 hours. Wake up from pain. Nap 2-3 hours during day.
+
+      SECTION C - PERSONAL CARE
+
+      5. Describe any problems with personal care:
+      - Bathing: Need grab bars. Cannot stand in shower long. Take baths instead.
+      - Dressing: Difficulty bending to put on shoes/socks. Husband helps.
+      - Grooming: Can do but takes longer. Fatigue limits.
+      - Toileting: No problems
+      - Feeding: No problems eating. Cannot cook much.
+
+      SECTION D - MEALS
+
+      6. Do you prepare your own meals? Sometimes
+      What do you prepare and how often? Sandwiches, microwave meals. 2-3x/week.
+      Any changes since illness? Used to cook full meals daily. Cannot stand long enough now.
+
+      SECTION E - HOUSE AND YARD WORK
+
+      7. What house/yard work can you do? Light dusting, fold laundry (sitting)
+      What can you no longer do? Vacuuming, mopping, yard work, heavy cleaning
+      How often do you do house work? 1-2 times per week
+      Do you need help? Yes, husband does heavy cleaning. Daughter helps weekly.
+
+      SECTION F - GETTING AROUND
+
+      8. Do you go out alone? Rarely
+      How often do you go out? 1-2 times per week for doctor appointments
+      Can you drive? Yes, but limited. Pain makes it difficult. Don't drive far.
+      Can you ride in a car? Yes, with frequent stops. Cannot sit long.
+      Can you use public transportation? No, too difficult to walk to bus stop.
+
+      SECTION G - SHOPPING
+
+      9. Do you shop? Rarely
+      If yes, what do you shop for? Groceries (husband usually does)
+      How often and how long? If I go, 20-30 minutes maximum. Use motorized cart.
+
+      SECTION H - MONEY
+
+      10. Can you pay bills, count change, handle savings, use checkbook?
+      Can pay bills online. Husband handles most finances. Get confused sometimes.
+
+      SECTION I - HOBBIES AND SOCIAL ACTIVITIES
+
+      11. What hobbies/interests do you have? Used to garden, read, sew. Now just TV.
+      12. Do you spend time with others? Rarely. See daughter once a week.
+      Do you have problems getting along with others? Yes, irritable from pain.
+      Avoid people due to pain and depression.
+
+      SECTION J - ABILITIES AFFECTED BY CONDITION
+
+      Check all that apply and explain:
+      [X] Lifting - Cannot lift more than 5 pounds
+      [X] Squatting - Cannot squat, causes severe pain
+      [X] Bending - Very limited, increases back pain
+      [X] Standing - 15 minutes maximum
+      [X] Reaching - Overhead reaching painful
+      [X] Walking - One block, then need to rest
+      [X] Sitting - 20-30 minutes, then need to stand/walk
+      [X] Kneeling - Cannot kneel
+      [X] Climbing stairs - One flight with railing, slowly
+      [X] Memory - Forget appointments, instructions
+      [X] Completing tasks - Cannot finish, fatigue/pain
+      [X] Concentration - Difficulty focusing, pain distracting
+      [X] Following instructions - Need written instructions, forget verbal
+      [X] Using hands - Grip strength reduced, drop things
+
+      13. How far can you walk before resting? One block
+      How long before you must rest? 10-15 minutes
+      14. Do you use assistive devices? Cane (prescribed by Dr. Johnson), back brace
+
+      SECTION K - HANDLING STRESS AND CHANGES
+
+      15. How well do you handle stress? Poorly. Stress increases pain and anxiety.
+      16. How well do you handle changes in routine? Not well. Need predictable schedule.
+
+      SECTION L - MEDICATIONS
+      List all medications and side effects:
+      1. Gabapentin 300mg 3x/day - drowsiness, dizziness
+      2. Cymbalta 60mg daily - nausea, fatigue
+      3. Tramadol 50mg as needed - drowsiness
+      4. Flexeril 10mg at bedtime - drowsiness, dry mouth
+
+      ADDITIONAL INFORMATION:
+      I was a teacher for 20 years. I loved my job but had to stop in 2021
+      because I could no longer stand in classroom, walk halls, or concentrate
+      enough to teach. I miss working and being productive. This illness has
+      taken everything from me.
+    output:
+      date: "03/10/2023"
+      provider: "Claimant Self-Report"
+      facility: "SSA Function Report"
+      exhibit_reference: "5E@1"
+      page_range: "1-10"
+      visit_type: "function_report"
+      report_date: "03/10/2023"
+      completed_by: "Claimant"
+      conditions_reported:
+        - "Degenerative disc disease"
+        - "Fibromyalgia"
+        - "Depression"
+        - "Anxiety"
+      daily_activities:
+        morning_routine: "Wake up around 8am in pain. Take medications. Rest on couch most of day. Try to do small tasks like dishes. Pain increases through day. Go to bed early (8pm) but don't sleep well."
+        sleep_patterns: "Only sleep 4-5 hours. Wake up from pain. Nap 2-3 hours during day."
+        personal_care:
+          bathing: "Need grab bars. Cannot stand in shower long. Take baths instead."
+          dressing: "Difficulty bending to put on shoes/socks. Husband helps."
+          grooming: "Can do but takes longer. Fatigue limits."
+          toileting: "No problems"
+          feeding: "No problems eating. Cannot cook much."
+        personal_care_limitations: "Needs grab bars for bathing, husband helps with dressing, fatigue limits grooming."
+      meal_preparation:
+        can_prepare_meals: true
+        types_of_meals: "Sandwiches, microwave meals"
+        frequency: "2-3x/week"
+        limitations: "Used to cook full meals daily. Cannot stand long enough now."
+      house_yard_work:
+        chores_can_do:
+          - "Light dusting"
+          - "Fold laundry (sitting)"
+        chores_cannot_do:
+          - "Vacuuming"
+          - "Mopping"
+          - "Yard work"
+          - "Heavy cleaning"
+        frequency: "1-2 times per week"
+        help_needed: "Husband does heavy cleaning. Daughter helps weekly."
+      going_out:
+        goes_out_alone: false
+        how_often: "1-2 times per week for doctor appointments"
+        can_drive: true
+        transportation_used:
+          - "Personal vehicle (limited)"
+        limitations: "Pain makes driving difficult. Don't drive far. Cannot sit long in car."
+      shopping:
+        can_shop: true
+        how_often: "Rarely"
+        time_spent: "20-30 minutes maximum"
+        limitations: "Use motorized cart. Husband usually does grocery shopping."
+      money_management:
+        can_handle_money: true
+        can_pay_bills: true
+        can_use_checkbook: false
+        limitations: "Husband handles most finances. Get confused sometimes."
+      social_functioning:
+        hobbies_interests:
+          - "Used to garden, read, sew"
+          - "Now just watches TV"
+        time_with_others: "Rarely"
+        activities_with_others: "See daughter once a week"
+        problems_getting_along: true
+        problems_with_whom: "Irritable from pain"
+        avoids_people: true
+      concentration_memory:
+        following_instructions: "Some Difficulty"
+        completing_tasks: false
+        attention_span: "Difficulty focusing, pain distracting"
+        finishing_what_started: false
+        memory_problems:
+          - "Forget appointments"
+          - "Forget instructions"
+        handling_stress: "Poorly. Stress increases pain and anxiety."
+        handling_changes: "Not well. Need predictable schedule."
+      physical_limitations:
+        walking:
+          can_walk: true
+          distance: "One block"
+          time_before_rest: "10-15 minutes"
+        standing:
+          can_stand: true
+          duration: "15 minutes maximum"
+        sitting:
+          can_sit: true
+          duration: "20-30 minutes, then need to stand/walk"
+        lifting: "Cannot lift more than 5 pounds"
+        climbing_stairs: "One flight with railing, slowly"
+        using_hands: "Grip strength reduced, drop things"
+      assistive_devices:
+        - device: "Cane"
+          prescribed_by: "Dr. Johnson"
+          frequency_used: "Regular use"
+        - device: "Back brace"
+          prescribed_by: "Not specified"
+          frequency_used: "As needed"
+      medications_reported:
+        - medication: "Gabapentin 300mg 3x/day"
+          condition_treated: "Pain/Fibromyalgia"
+          side_effects: "Drowsiness, dizziness"
+        - medication: "Cymbalta 60mg daily"
+          condition_treated: "Depression/Pain"
+          side_effects: "Nausea, fatigue"
+        - medication: "Tramadol 50mg as needed"
+          condition_treated: "Pain"
+          side_effects: "Drowsiness"
+        - medication: "Flexeril 10mg at bedtime"
+          condition_treated: "Muscle spasms"
+          side_effects: "Drowsiness, dry mouth"
+      additional_remarks: "Former teacher for 20 years. Had to stop in 2021 because could no longer stand in classroom, walk halls, or concentrate enough to teach."

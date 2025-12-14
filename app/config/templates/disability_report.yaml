@@ -1,0 +1,553 @@
+# Disability Report (SSA-3368) Extraction Template
+# For: E-Section Disability Report - Adult (SSA-3368)
+#
+# Version: 1.0.0
+#
+# Note: SSA-3368 is the initial disability report completed by claimants.
+# Contains medical history, work history, and how conditions limit work ability.
+# Different from SSA-3373 (Function Report) which focuses on daily activities.
+
+visit_type: "disability_report"
+description: "SSA-3368 Disability Report - Adult detailing conditions, treatments, work history, and limitations"
+
+# User prompt specific to disability report extraction
+user_prompt: |
+  Parse the following SSA-3368 Disability Report and extract all reported
+  medical conditions, treatments, and work limitations.
+
+  **DOCUMENT:**
+  {medical_content}
+
+  **EXTRACT THE FOLLOWING:**
+
+  Medical Conditions:
+  - All conditions that limit work ability
+  - When each condition began
+  - How conditions have changed over time
+
+  Medical Treatment:
+  - Treating providers and facilities
+  - Types of treatment received
+  - Medications
+  - Hospitalizations
+
+  Work History:
+  - Jobs held in past 15 years
+  - How conditions affect ability to work
+  - When stopped working and why
+
+  Education and Training
+
+  **OUTPUT:** Return JSON array following the disability_report schema.
+
+# Fields specific to disability reports
+fields:
+  report_date:
+    type: date
+    required: true
+    label: "Date"
+    description: "Date disability report was completed"
+
+  alleged_onset_date:
+    type: date
+    required: true
+    label: "AOD"
+    description: "Alleged onset date - when claimant became unable to work"
+
+  # Medical Conditions Section
+  disabling_conditions:
+    type: array
+    items: object
+    required: true
+    label: "Conditions"
+    item_fields:
+      condition_name: string
+      onset_date: date
+      how_limits_work: text
+      getting_worse: boolean
+    description: "Conditions that prevent working"
+
+  primary_condition:
+    type: string
+    required: true
+    label: "Primary Dx"
+    description: "Main condition preventing work"
+
+  # Medical Treatment Section
+  treating_providers:
+    type: array
+    items: object
+    required: true
+    label: "Providers"
+    item_fields:
+      provider_name: string
+      provider_type: string
+      facility_name: string
+      address: string
+      phone: string
+      first_visit: date
+      last_visit: date
+      next_appointment: date
+      reason_for_visits: string
+      treatment_received: string
+    description: "All treating medical providers"
+
+  hospitalizations:
+    type: array
+    items: object
+    required: false
+    label: "Hospitalizations"
+    item_fields:
+      facility_name: string
+      admission_date: date
+      discharge_date: date
+      reason: string
+      treatment: string
+    description: "Hospital stays related to conditions"
+
+  emergency_visits:
+    type: array
+    items: object
+    required: false
+    label: "ER Visits"
+    item_fields:
+      facility_name: string
+      date: date
+      reason: string
+    description: "Emergency room visits"
+
+  medications:
+    type: array
+    items: object
+    required: false
+    label: "Medications"
+    item_fields:
+      medication_name: string
+      dosage: string
+      frequency: string
+      prescriber: string
+      reason: string
+      side_effects: string
+    description: "Current medications"
+
+  medical_tests:
+    type: array
+    items: object
+    required: false
+    label: "Tests"
+    item_fields:
+      test_name: string
+      date: date
+      ordered_by: string
+      facility: string
+    description: "Medical tests performed"
+
+  # Work History Section
+  work_history:
+    type: array
+    items: object
+    required: true
+    label: "Work History"
+    item_fields:
+      job_title: string
+      employer: string
+      start_date: date
+      end_date: date
+      hours_per_day: number
+      days_per_week: number
+      rate_of_pay: string
+      duties: array
+      physical_demands: object
+    description: "Jobs in past 15 years"
+
+  date_stopped_working:
+    type: date
+    required: true
+    label: "Stopped Working"
+    description: "Date claimant stopped working"
+
+  reason_stopped_working:
+    type: text
+    required: true
+    label: "Why Stopped"
+    description: "Why claimant stopped working"
+
+  tried_to_work_since:
+    type: boolean
+    required: false
+    label: "Tried Working"
+    description: "Whether claimant tried to work after stopping"
+
+  work_attempts:
+    type: array
+    items: object
+    required: false
+    label: "Work Attempts"
+    item_fields:
+      employer: string
+      dates: string
+      hours: string
+      why_stopped: string
+    description: "Attempts to return to work"
+
+  # Education Section
+  education:
+    type: object
+    required: false
+    label: "Education"
+    fields:
+      highest_grade: string
+      special_education: boolean
+      vocational_training: string
+      certifications: array
+    description: "Educational background"
+
+  # Additional Information
+  other_benefits:
+    type: array
+    items: string
+    required: false
+    label: "Other Benefits"
+    description: "Other disability benefits applied for or receiving"
+
+  workers_comp:
+    type: object
+    required: false
+    label: "Workers Comp"
+    fields:
+      filed_claim: boolean
+      claim_status: string
+      settlement_date: date
+      settlement_amount: string
+    description: "Workers compensation information"
+
+  additional_remarks:
+    type: text
+    required: false
+    label: "Remarks"
+    description: "Additional information about disability"
+
+# Output labels for occurrence_treatment column
+output_labels: ["AOD", "Primary Dx", "Conditions", "Providers", "Work History", "Why Stopped"]
+
+# Formatting example
+output_example: |
+  AOD: 06/15/2022
+  Primary Dx: Degenerative disc disease with radiculopathy
+  Conditions: DDD, fibromyalgia, depression (all worsening)
+  Providers: Dr. Smith (ortho), Dr. Jones (PCP), Valley Pain Clinic
+  Work History: Teacher 2010-2022, Retail 2005-2010
+  Why Stopped: Back pain made standing/walking impossible, cognitive issues from meds
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      DISABILITY REPORT - ADULT (SSA-3368)
+      Date Completed: 02/15/2023
+
+      SECTION 1 - INFORMATION ABOUT YOUR PHYSICAL OR MENTAL CONDITION(S)
+
+      1A. What is your disabling condition?
+      - Degenerative disc disease with radiculopathy
+      - Fibromyalgia
+      - Major depression
+      - Anxiety disorder
+
+      1B. When did your condition first bother you?
+      Back problems: 2018
+      Fibromyalgia: 2020
+      Depression: 2019
+      Anxiety: 2019
+
+      1C. When did your condition become severe enough to keep you from working?
+      June 15, 2022
+
+      1D. Has your condition gotten worse since it started? Yes
+      Explain: Back pain has progressed. Now have constant leg pain and numbness.
+      Depression worsened after I had to stop working. Anxiety about finances.
+
+      SECTION 2 - INFORMATION ABOUT YOUR MEDICAL RECORDS
+
+      2A. List all healthcare providers (doctors, hospitals, clinics):
+
+      Provider 1:
+      Name: Dr. Michael Roberts, MD (Orthopedic Surgeon)
+      Facility: Spine & Joint Center
+      Address: 123 Medical Plaza, Suite 400
+      Phone: (555) 123-4567
+      First Visit: 03/2019
+      Last Visit: 01/2023
+      Next Appointment: 04/2023
+      Reasons: Back pain, leg numbness, radiculopathy
+      Treatment: Epidural injections, physical therapy referral, medications
+
+      Provider 2:
+      Name: Dr. Sarah Wilson, MD (Primary Care)
+      Facility: Valley Family Medicine
+      Address: 456 Health Center Dr
+      Phone: (555) 234-5678
+      First Visit: 2015
+      Last Visit: 02/2023
+      Next Appointment: 03/2023
+      Reasons: Fibromyalgia, depression, anxiety, medication management
+      Treatment: Medications, referrals to specialists
+
+      Provider 3:
+      Name: Dr. James Lee, PhD (Psychologist)
+      Facility: Behavioral Health Associates
+      Address: 789 Counseling Way
+      Phone: (555) 345-6789
+      First Visit: 09/2021
+      Last Visit: 02/2023
+      Next Appointment: Weekly
+      Reasons: Depression, anxiety
+      Treatment: Individual therapy, CBT
+
+      2B. Have you been hospitalized or had emergency room visits?
+
+      Hospitalization 1:
+      Facility: Regional Medical Center
+      Dates: 08/10/2022 - 08/12/2022
+      Reason: Severe back pain, unable to walk
+      Treatment: IV pain medication, MRI, discharged with medications
+
+      ER Visit 1:
+      Facility: Regional Medical Center
+      Date: 11/05/2022
+      Reason: Severe anxiety attack, chest pain (ruled out cardiac)
+
+      2C. What medicines do you take?
+      1. Gabapentin 600mg 3x daily - nerve pain - Dr. Roberts
+         Side effects: Dizziness, memory problems
+      2. Cymbalta 60mg daily - depression/pain - Dr. Wilson
+         Side effects: Nausea, fatigue
+      3. Norco 5/325 as needed - pain - Dr. Roberts
+         Side effects: Drowsiness, constipation
+      4. Xanax 0.5mg as needed - anxiety - Dr. Wilson
+         Side effects: Drowsiness
+      5. Flexeril 10mg at bedtime - muscle spasms - Dr. Roberts
+         Side effects: Drowsiness
+
+      2D. Medical tests:
+      - MRI Lumbar Spine - 08/2022 - Dr. Roberts - Regional Imaging
+      - EMG/NCV - 09/2022 - Dr. Roberts - Spine & Joint Center
+      - X-rays spine - 03/2019, 06/2021 - Dr. Roberts
+      - Blood work - monthly - Dr. Wilson
+
+      SECTION 3 - INFORMATION ABOUT YOUR WORK
+
+      3A. List all jobs in past 15 years:
+
+      Job 1:
+      Title: High School Teacher
+      Employer: Lincoln High School
+      Dates: 08/2010 - 06/2022
+      Hours per day: 8-9
+      Days per week: 5
+      Pay: $65,000/year
+      Duties: Teaching English classes, grading papers, meeting with students/parents,
+              supervising activities, standing for lectures
+      Physical: Standing 6+ hours/day, walking between classes, lifting books (15-20 lbs),
+                bending, reaching
+
+      Job 2:
+      Title: Retail Sales Associate
+      Employer: Department Store
+      Dates: 2005 - 2010
+      Hours per day: 8
+      Days per week: 5
+      Pay: $12/hour
+      Duties: Customer service, stocking shelves, operating register
+      Physical: Standing all day, lifting 20-30 lbs, bending, reaching
+
+      3B. When did you stop working? June 15, 2022
+
+      3C. Why did you stop working?
+      Back pain became unbearable. Could not stand to teach classes. Leg numbness
+      made walking difficult. Medication side effects affected concentration.
+      Had to take too many sick days. Was advised by doctor to stop working.
+
+      3D. Have you tried to work since? Yes
+
+      Work Attempt:
+      Employer: Part-time tutoring (self-employed)
+      Dates: 09/2022 - 10/2022
+      Hours: 2-3 hours/week
+      Why stopped: Even sitting for short periods caused severe pain. Medications
+                   made it hard to concentrate. Had to cancel sessions frequently.
+
+      SECTION 4 - EDUCATION AND TRAINING
+
+      Highest grade completed: Master's Degree
+      Special education? No
+      Specialized training: Teaching certification, English Literature
+      Other training: None
+
+      SECTION 5 - REMARKS
+
+      I loved teaching and never wanted to stop working. My students meant everything
+      to me. But the pain became unbearable. I can barely sit, stand, or walk without
+      severe pain. The medications help somewhat but make me foggy and tired. I have
+      tried everything - injections, physical therapy, medications - but nothing has
+      given me enough relief to work. My depression has gotten worse since I had to
+      stop teaching. I feel useless and worry constantly about my future.
+    output:
+      date: "02/15/2023"
+      provider: "Claimant Self-Report"
+      facility: "SSA Disability Report"
+      exhibit_reference: "3E@1"
+      page_range: "1-15"
+      visit_type: "disability_report"
+      report_date: "02/15/2023"
+      alleged_onset_date: "06/15/2022"
+      disabling_conditions:
+        - condition_name: "Degenerative disc disease with radiculopathy"
+          onset_date: "2018"
+          how_limits_work: "Back pain unbearable, leg numbness makes walking difficult"
+          getting_worse: true
+        - condition_name: "Fibromyalgia"
+          onset_date: "2020"
+          how_limits_work: "Widespread pain, fatigue"
+          getting_worse: true
+        - condition_name: "Major depression"
+          onset_date: "2019"
+          how_limits_work: "Worsened after stopping work, feels useless"
+          getting_worse: true
+        - condition_name: "Anxiety disorder"
+          onset_date: "2019"
+          how_limits_work: "Constant worry about finances and future"
+          getting_worse: true
+      primary_condition: "Degenerative disc disease with radiculopathy"
+      treating_providers:
+        - provider_name: "Dr. Michael Roberts, MD"
+          provider_type: "Orthopedic Surgeon"
+          facility_name: "Spine & Joint Center"
+          address: "123 Medical Plaza, Suite 400"
+          phone: "(555) 123-4567"
+          first_visit: "03/2019"
+          last_visit: "01/2023"
+          next_appointment: "04/2023"
+          reason_for_visits: "Back pain, leg numbness, radiculopathy"
+          treatment_received: "Epidural injections, physical therapy referral, medications"
+        - provider_name: "Dr. Sarah Wilson, MD"
+          provider_type: "Primary Care"
+          facility_name: "Valley Family Medicine"
+          address: "456 Health Center Dr"
+          phone: "(555) 234-5678"
+          first_visit: "2015"
+          last_visit: "02/2023"
+          next_appointment: "03/2023"
+          reason_for_visits: "Fibromyalgia, depression, anxiety, medication management"
+          treatment_received: "Medications, referrals to specialists"
+        - provider_name: "Dr. James Lee, PhD"
+          provider_type: "Psychologist"
+          facility_name: "Behavioral Health Associates"
+          address: "789 Counseling Way"
+          phone: "(555) 345-6789"
+          first_visit: "09/2021"
+          last_visit: "02/2023"
+          next_appointment: "Weekly"
+          reason_for_visits: "Depression, anxiety"
+          treatment_received: "Individual therapy, CBT"
+      hospitalizations:
+        - facility_name: "Regional Medical Center"
+          admission_date: "08/10/2022"
+          discharge_date: "08/12/2022"
+          reason: "Severe back pain, unable to walk"
+          treatment: "IV pain medication, MRI, discharged with medications"
+      emergency_visits:
+        - facility_name: "Regional Medical Center"
+          date: "11/05/2022"
+          reason: "Severe anxiety attack, chest pain (ruled out cardiac)"
+      medications:
+        - medication_name: "Gabapentin"
+          dosage: "600mg"
+          frequency: "3x daily"
+          prescriber: "Dr. Roberts"
+          reason: "Nerve pain"
+          side_effects: "Dizziness, memory problems"
+        - medication_name: "Cymbalta"
+          dosage: "60mg"
+          frequency: "Daily"
+          prescriber: "Dr. Wilson"
+          reason: "Depression/pain"
+          side_effects: "Nausea, fatigue"
+        - medication_name: "Norco"
+          dosage: "5/325"
+          frequency: "As needed"
+          prescriber: "Dr. Roberts"
+          reason: "Pain"
+          side_effects: "Drowsiness, constipation"
+        - medication_name: "Xanax"
+          dosage: "0.5mg"
+          frequency: "As needed"
+          prescriber: "Dr. Wilson"
+          reason: "Anxiety"
+          side_effects: "Drowsiness"
+        - medication_name: "Flexeril"
+          dosage: "10mg"
+          frequency: "At bedtime"
+          prescriber: "Dr. Roberts"
+          reason: "Muscle spasms"
+          side_effects: "Drowsiness"
+      medical_tests:
+        - test_name: "MRI Lumbar Spine"
+          date: "08/2022"
+          ordered_by: "Dr. Roberts"
+          facility: "Regional Imaging"
+        - test_name: "EMG/NCV"
+          date: "09/2022"
+          ordered_by: "Dr. Roberts"
+          facility: "Spine & Joint Center"
+        - test_name: "X-rays spine"
+          date: "03/2019, 06/2021"
+          ordered_by: "Dr. Roberts"
+          facility: "Not specified"
+      work_history:
+        - job_title: "High School Teacher"
+          employer: "Lincoln High School"
+          start_date: "08/2010"
+          end_date: "06/2022"
+          hours_per_day: 8
+          days_per_week: 5
+          rate_of_pay: "$65,000/year"
+          duties:
+            - "Teaching English classes"
+            - "Grading papers"
+            - "Meeting with students/parents"
+            - "Supervising activities"
+            - "Standing for lectures"
+          physical_demands:
+            standing: "6+ hours/day"
+            walking: "Between classes"
+            lifting: "15-20 lbs (books)"
+            other: "Bending, reaching"
+        - job_title: "Retail Sales Associate"
+          employer: "Department Store"
+          start_date: "2005"
+          end_date: "2010"
+          hours_per_day: 8
+          days_per_week: 5
+          rate_of_pay: "$12/hour"
+          duties:
+            - "Customer service"
+            - "Stocking shelves"
+            - "Operating register"
+          physical_demands:
+            standing: "All day"
+            lifting: "20-30 lbs"
+            other: "Bending, reaching"
+      date_stopped_working: "06/15/2022"
+      reason_stopped_working: "Back pain became unbearable. Could not stand to teach classes. Leg numbness made walking difficult. Medication side effects affected concentration. Had to take too many sick days. Was advised by doctor to stop working."
+      tried_to_work_since: true
+      work_attempts:
+        - employer: "Part-time tutoring (self-employed)"
+          dates: "09/2022 - 10/2022"
+          hours: "2-3 hours/week"
+          why_stopped: "Even sitting for short periods caused severe pain. Medications made it hard to concentrate. Had to cancel sessions frequently."
+      education:
+        highest_grade: "Master's Degree"
+        special_education: false
+        vocational_training: "Teaching certification, English Literature"
+        certifications: null
+      additional_remarks: "Loved teaching and never wanted to stop working. Pain became unbearable. Can barely sit, stand, or walk without severe pain. Depression has gotten worse since stopping teaching."

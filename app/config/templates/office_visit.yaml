@@ -1,0 +1,138 @@
+# Office Visit Extraction Template
+# For: Progress Notes, Clinic Visits, Primary Care, Specialist Visits
+#
+# Version: 1.0.0
+
+visit_type: "office_visit"
+description: "Standard office/clinic visits including progress notes and follow-ups"
+
+# User prompt specific to office visits
+user_prompt: |
+  Parse the following office visit/progress notes and extract all encounters.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH VISIT:**
+  - Date of service
+  - Provider name and credentials
+  - Facility name
+  - Chief complaint (CC)
+  - History of present illness (HPI) - if documented
+  - Physical exam findings - if documented
+  - Assessment/Diagnoses (Dx)
+  - Plan of care
+
+  **FALLBACK FOR SPARSE RECORDS:**
+  If the record lacks structured CC/HPI/Dx/Plan but contains a brief narrative or note,
+  use the "visit_summary" field to capture that text instead. This prevents empty extractions.
+
+  **OUTPUT:** Return JSON array following the office_visit schema.
+
+# Fields specific to office visits
+fields:
+  chief_complaint:
+    type: text
+    required: true
+    label: "CC"
+    description: "Patient's primary reason for visit"
+    max_len: 200
+
+  history_present_illness:
+    type: text
+    required: false
+    label: "HPI"
+    description: "Narrative of current symptoms and history"
+    max_len: 300
+
+  physical_exam_findings:
+    type: array
+    items: string
+    required: false
+    label: "Exam"
+    description: "Objective examination findings"
+
+  assessment_diagnoses:
+    type: array
+    items: string
+    required: true
+    label: "Dx"
+    description: "Provider's diagnostic assessment"
+
+  plan_of_care:
+    type: text
+    required: false
+    label: "Plan"
+    description: "Treatment plan, referrals, follow-up"
+    max_len: 200
+
+  visit_summary:
+    type: text
+    required: false
+    label: "Summary"
+    description: "Fallback narrative when CC/HPI/Dx/Plan are unavailable. Use for sparse records that only have a brief note or summary."
+    max_len: 300
+
+# Output labels for occurrence_treatment column
+output_labels: ["CC", "HPI", "Exam", "Dx", "Plan"]
+
+# Formatting example
+output_example: |
+  CC: Headache, tremors
+  HPI: Patient reports worsening headaches over 3 weeks
+  Exam: Alert, oriented x3. Mild resting tremor bilateral hands
+  Dx: Parkinson disease, cervical radiculopathy
+  Plan: Order MRI, refer to neurology
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      PATIENT: John Doe  DOS: 03/15/2022  PROVIDER: Yuanyuan Long, MD
+      CHIEF COMPLAINT: Headache, Tremors
+      ASSESSMENT: Pre-op testing, excessive daytime sleepiness, tremors,
+      Parkinson disease, cervical radiculopathy, lumbar radiculopathy
+      PLAN: PSG study, EMG/NCV BLE, return in 2-3 weeks
+    output:
+      date: "03/15/2022"
+      provider: "Yuanyuan Long, MD"
+      facility: "Not Specified"
+      exhibit_reference: "2F@621"
+      page_range: "621-627"
+      visit_type: "office_visit"
+      chief_complaint: "Headache, Tremors"
+      history_present_illness: null
+      physical_exam_findings: null
+      assessment_diagnoses:
+        - "Pre-op testing"
+        - "Excessive daytime sleepiness"
+        - "Tremors"
+        - "Parkinson disease"
+        - "Cervical radiculopathy"
+        - "Lumbar radiculopathy"
+      plan_of_care: "PSG study, EMG/NCV BLE, return in 2-3 weeks"
+
+  - input: |
+      DATE: 11/02/2021  PROVIDER: Sarah Chen, MD  FACILITY: Valley Medical
+      CC: Follow-up diabetes, hypertension
+      HPI: 58yo male with T2DM, HTN. Reports good compliance with meds.
+      Denies chest pain, SOB. Occasional headaches.
+      PE: BP 138/82, HR 76. Heart RRR, no murmurs. Lungs CTA.
+      ASSESSMENT: T2DM controlled, HTN borderline
+      PLAN: Continue metformin, increase lisinopril to 20mg, recheck 3 months
+    output:
+      date: "11/02/2021"
+      provider: "Sarah Chen, MD"
+      facility: "Valley Medical"
+      exhibit_reference: "5F@102"
+      page_range: "102-103"
+      visit_type: "office_visit"
+      chief_complaint: "Follow-up diabetes, hypertension"
+      history_present_illness: "58yo male with T2DM, HTN. Reports good compliance with meds. Denies chest pain, SOB. Occasional headaches."
+      physical_exam_findings:
+        - "BP 138/82, HR 76"
+        - "Heart RRR, no murmurs"
+        - "Lungs CTA"
+      assessment_diagnoses:
+        - "T2DM controlled"
+        - "HTN borderline"
+      plan_of_care: "Continue metformin, increase lisinopril to 20mg, recheck 3 months"

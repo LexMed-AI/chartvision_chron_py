@@ -1,0 +1,128 @@
+# Imaging Report Extraction Template
+# For: MRI, CT, X-Ray, Ultrasound, PET scans
+#
+# Version: 1.0.0
+
+visit_type: "imaging_report"
+description: "Radiology and diagnostic imaging studies"
+
+# User prompt specific to imaging reports
+user_prompt: |
+  Parse the following imaging/radiology reports and extract all studies.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH STUDY:**
+  - Date of study
+  - Radiologist/interpreting physician
+  - Facility name
+  - Imaging type (MRI, CT, X-Ray, etc.)
+  - Body part/region imaged
+  - Clinical indication
+  - Detailed findings
+  - Impression/conclusion
+
+  **OUTPUT:** Return JSON array following the imaging_report schema.
+
+# Fields specific to imaging reports
+fields:
+  imaging_type:
+    type: string
+    required: true
+    label: "Type"
+    examples: ["MRI", "X-Ray", "CT", "Ultrasound", "PET", "Bone Scan"]
+    description: "Type of imaging study"
+
+  body_part:
+    type: string
+    required: true
+    label: "Body Part"
+    description: "Anatomical region imaged"
+
+  indication:
+    type: text
+    required: false
+    label: "Indication"
+    description: "Reason for study"
+
+  findings:
+    type: text
+    required: true
+    label: "Findings"
+    description: "Detailed radiological findings"
+
+  impression:
+    type: text
+    required: true
+    label: "Impression"
+    description: "Radiologist's conclusion/interpretation"
+
+  comparison:
+    type: string
+    required: false
+    label: "Comparison"
+    description: "Prior studies compared, if any"
+
+# Output labels for occurrence_treatment column
+output_labels: ["Type", "Body Part", "Indication", "Findings", "Impression"]
+
+# Formatting example
+output_example: |
+  Type: MRI L-Spine
+  Body Part: Lumbar Spine
+  Indication: Back pain, radiculopathy
+  Findings: Small annular tear at L4/L5 with mild disc bulge
+  Impression: Minimal foraminal narrowing, no high-grade stenosis
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      MRI LUMBAR SPINE  Date: 12/16/2020
+      INDICATION: Back pain, radiculopathy, muscle weakness
+      TECHNIQUE: Multiplanar multisequence MRI of lumbar spine without contrast
+      FINDINGS:
+      L3-L4: Mild facet arthropathy. No significant stenosis.
+      L4-L5: Small annular tear with mild broad-based disc bulge. Minimal
+      bilateral foraminal narrowing.
+      L5-S1: Mild disc desiccation. No herniation.
+      IMPRESSION: Small annular tear at L4/L5 with mild broad-based disc
+      bulge with minimal bilateral foraminal narrowing. No high-grade
+      central canal or foraminal narrowing identified.
+    output:
+      date: "12/16/2020"
+      provider: "Not Specified"
+      facility: "Not Specified"
+      exhibit_reference: "2F@357"
+      page_range: "357-361"
+      visit_type: "imaging_report"
+      imaging_type: "MRI"
+      body_part: "Lumbar Spine"
+      indication: "Back pain, radiculopathy, muscle weakness"
+      findings: "L3-L4: Mild facet arthropathy, no significant stenosis. L4-L5: Small annular tear with mild broad-based disc bulge, minimal bilateral foraminal narrowing. L5-S1: Mild disc desiccation, no herniation."
+      impression: "Small annular tear at L4/L5 with mild broad-based disc bulge with minimal bilateral foraminal narrowing. No high-grade central canal or foraminal narrowing identified."
+
+  - input: |
+      X-RAY CHEST PA AND LATERAL
+      Date: 08/22/2021
+      Ordering Provider: James Wilson, MD
+      Facility: Regional Medical Center
+      CLINICAL HISTORY: Shortness of breath, cough
+      COMPARISON: Chest x-ray 03/15/2021
+      FINDINGS: Heart size normal. Lungs are clear without focal consolidation,
+      effusion, or pneumothorax. No acute osseous abnormality.
+      IMPRESSION: No acute cardiopulmonary process. Unchanged from prior.
+      Interpreting Physician: Robert Kim, MD
+    output:
+      date: "08/22/2021"
+      provider: "Robert Kim, MD"
+      facility: "Regional Medical Center"
+      exhibit_reference: "7F@45"
+      page_range: "45"
+      visit_type: "imaging_report"
+      imaging_type: "X-Ray"
+      body_part: "Chest"
+      indication: "Shortness of breath, cough"
+      comparison: "Chest x-ray 03/15/2021"
+      findings: "Heart size normal. Lungs are clear without focal consolidation, effusion, or pneumothorax. No acute osseous abnormality."
+      impression: "No acute cardiopulmonary process. Unchanged from prior."

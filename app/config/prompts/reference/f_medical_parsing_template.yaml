@@ -1,0 +1,909 @@
+# SSA Electronic Records Express (ERE) F-Section Medical Parsing Template
+# Schema Version: 3.0.0
+# Purpose: Streamlined schema for LLM extraction of F-Section medical exhibits
+#          into structured, reverse chronological tabular format
+
+schema_version: "3.0.0"
+template_name: "F-Section Medical Chronology Extraction"
+description: |
+  High-fidelity extraction template for parsing diverse medical document types
+  from ERE F-Section files. Uses dynamic visit_type classification to apply
+  context-appropriate extraction schemas for each medical encounter.
+
+# =============================================================================
+# LLM CONFIGURATION
+# =============================================================================
+
+llm_config:
+  model_preference: "haiku"  # Fast extraction, escalate to sonnet for complex cases
+  max_tokens: 4000
+  temperature: 0.05
+  expected_output_tokens: 3000
+  output_format: "structured_json"
+
+# =============================================================================
+# SYSTEM PROMPT
+# =============================================================================
+
+system_prompt: |
+  You are a medical records extraction specialist for SSA disability cases.
+  Your task is to parse F-Section medical exhibits and organize findings into
+  a structured, reverse chronological table.
+
+  EXTRACTION PRINCIPLES:
+  1. Use exact medical terminology from source documents
+  2. Include exhibit references for every entry (e.g., "2F@12")
+  3. Capture both subjective complaints and objective findings
+  4. Maintain clinical accuracy - never interpret or diagnose
+  5. Sort entries in reverse chronological order (newest first)
+
+  VISIT TYPE CLASSIFICATION RULES (follow strictly):
+
+  1. **consultative_exam**: Use when document is ordered by SSA, DDS, or
+     state agency. Look for: "Consultative Examination", "CE Report",
+     "Referred by Disability Determination Services". These are evaluations,
+     NOT treatment visits. Always extract the functional_opinion field.
+
+  2. **psych_visit**: Use for psychiatric/psychological treatment notes from
+     psychiatrists, psychologists, LCSWs, LPCs, PMHNPs. Look for: Mental
+     Status Exam, mood/affect descriptions, medication management. Do NOT
+     use office_visit for mental health encounters.
+
+  3. **diagnostic_study**: Use for EMG/NCS, EKG, EEG, Sleep Studies, Stress
+     Tests. These are NOT imaging (no pictures) and NOT labs (no blood).
+     Look for: nerve conduction, electrode placement, waveform analysis.
+
+  4. **procedural_visit**: Use for minor in-office procedures: injections
+     (epidural, trigger point, joint), wound care, minor excisions. If it
+     happened in an OR with anesthesia, use surgical_report instead.
+
+  5. **medical_source_statement**: Use for RFC forms, Medical Source
+     Statements, doctor opinion letters about functional limitations.
+     These are forms/letters, not clinical visit notes.
+
+  6. **emergency_visit**: Use for ALL ER/ED visits, even for psychiatric
+     complaints. Capture MSE findings in the clinical_course field. ER
+     visits show acuity and decompensation regardless of complaint type.
+
+  DEFAULT: If none of the above apply, use office_visit for physical
+  medicine encounters.
+
+  CLASSIFY FIRST, then extract using the schema for that visit_type.
+
+# =============================================================================
+# USER PROMPT TEMPLATE
+# =============================================================================
+
+user_prompt: |
+  Parse the following F-Section medical records and extract all encounters
+  into a structured chronology.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACTION REQUIREMENTS:**
+  1. Identify each medical encounter's visit_type
+  2. Extract fields specific to that visit type
+  3. Include exhibit reference and page range for every entry
+  4. Sort by date (newest first)
+
+  **OUTPUT FORMAT:**
+  Return a JSON array of entries following the f_section_chronology schema.
+
+variables:
+  - medical_content
+
+# =============================================================================
+# SCHEMA DEFINITION
+# =============================================================================
+
+f_section_chronology:
+  description: "Primary list of all medical events extracted from Section F"
+
+  entry_schema:
+    # Core fields present in every entry
+    core_fields:
+      date:
+        type: date
+        format: "MM/DD/YYYY"
+        required: true
+        description: "Date of service"
+
+      provider:
+        type: string
+        required: true
+        description: "Provider name with credentials (e.g., 'John Smith, MD')"
+        default: "Not Specified"
+
+      facility:
+        type: string
+        required: true
+        description: "Facility or clinic name"
+        default: "Not Specified"
+
+      exhibit_reference:
+        type: string
+        required: true
+        format: "{exhibit_number}F@{page}"
+        examples: ["2F@12", "15F@45"]
+        description: "ERE exhibit and page reference"
+
+      page_range:
+        type: string
+        required: true
+        format: "{start}-{end}"
+        examples: ["332-337", "45"]
+        description: "Page range within exhibit"
+
+      visit_type:
+        type: enum
+        required: true
+        values:
+          - office_visit
+          - imaging_report
+          - therapy_eval
+          - lab_result
+          - surgical_report
+          - emergency_visit
+          - inpatient_admission
+          - medical_source_statement
+          - consultative_exam
+          - psych_visit
+          - diagnostic_study
+          - procedural_visit
+        description: "Classification that determines extraction schema"
+
+    # Dynamic occurrence_treatment container - populated based on visit_type
+    occurrence_treatment:
+      description: "Visit-type-specific details container"
+
+      # ---------------------------------------------------------------------------
+      # OFFICE VISIT DETAILS
+      # ---------------------------------------------------------------------------
+      office_visit:
+        applies_to: "office_visit"
+        output_labels: ["CC", "HPI", "Exam", "Dx", "Plan"]
+        fields:
+          chief_complaint:
+            type: text
+            required: true
+            label: "CC"
+            description: "Patient's primary reason for visit"
+
+          history_present_illness:
+            type: text
+            required: false
+            label: "HPI"
+            description: "Narrative of current symptoms and history"
+
+          physical_exam_findings:
+            type: array
+            items: string
+            required: false
+            label: "Exam"
+            description: "Objective examination findings"
+
+          assessment_diagnoses:
+            type: array
+            items: string
+            required: true
+            label: "Dx"
+            description: "Provider's diagnostic assessment"
+
+          plan_of_care:
+            type: text
+            required: false
+            label: "Plan"
+            description: "Treatment plan, referrals, follow-up"
+
+      # ---------------------------------------------------------------------------
+      # IMAGING REPORT DETAILS
+      # ---------------------------------------------------------------------------
+      imaging_report:
+        applies_to: "imaging_report"
+        output_labels: ["Type", "Body Part", "Indication", "Findings", "Impression"]
+        fields:
+          imaging_type:
+            type: string
+            required: true
+            label: "Type"
+            examples: ["MRI", "X-Ray", "CT", "Ultrasound", "PET"]
+            description: "Type of imaging study. Extract from header or infer from findings if unclear."
+
+          body_part:
+            type: string
+            required: true
+            label: "Body Part"
+            description: "Anatomical region imaged. Extract from header or infer from findings."
+
+          indication:
+            type: text
+            required: false
+            label: "Indication"
+            description: "Reason for study. Extract if present, otherwise leave empty."
+
+          findings:
+            type: text
+            required: true
+            label: "Findings"
+            description: "Radiological findings. Summarize key observations even if OCR is imperfect. Fix typos if necessary."
+
+          impression:
+            type: text
+            required: true
+            label: "Impression"
+            description: "Radiologist's conclusion. If impression section is missing, extract key findings as the impression."
+
+      # ---------------------------------------------------------------------------
+      # THERAPY EVALUATION DETAILS
+      # ---------------------------------------------------------------------------
+      therapy_eval:
+        applies_to: "therapy_eval"
+        output_labels: ["Therapy Type", "Subjective", "Objective", "Assessment", "Plan"]
+        fields:
+          therapy_type:
+            type: enum
+            required: true
+            label: "Therapy Type"
+            values:
+              - "Physical Therapy"
+              - "Occupational Therapy"
+              - "Speech Therapy"
+              - "Cognitive Therapy"
+            description: "Type of therapy evaluation"
+
+          subjective_complaints:
+            type: text
+            required: true
+            label: "Subjective"
+            description: "Patient-reported symptoms and functional limitations"
+
+          objective_measurements:
+            type: array
+            items: string
+            required: true
+            label: "Objective"
+            description: "Measured findings (ROM, strength, gait, etc.)"
+            examples:
+              - "ROM cervical flexion 30 degrees"
+              - "Grip strength 15 lbs bilateral"
+              - "Gait: antalgic, uses cane"
+
+          assessment:
+            type: text
+            required: true
+            label: "Assessment"
+            description: "Therapist's clinical assessment and prognosis"
+
+          plan:
+            type: text
+            required: false
+            label: "Plan"
+            description: "Treatment plan and goals"
+
+          progress_towards_goals:
+            type: text
+            required: false
+            label: "Progress"
+            description: "Progress towards therapy goals, showing improvement or lack thereof"
+
+      # ---------------------------------------------------------------------------
+      # LAB RESULT DETAILS
+      # Group ALL tests from same panel/date into ONE entry. Include BOTH normal
+      # and abnormal results. Format as a summary table, not individual rows.
+      # ---------------------------------------------------------------------------
+      lab_result:
+        applies_to: "lab_result"
+        output_labels: ["Panel Name", "Results Summary"]
+        extraction_guidance: |
+          CRITICAL: Extract ALL lab tests from each panel, NOT just abnormal ones.
+          Group tests by panel type (CBC, CMP, BMP, Lipid Panel, Thyroid Panel, etc.)
+          Create ONE entry per panel per date, not one entry per test.
+          Include both normal and abnormal values - attorneys need complete picture.
+        fields:
+          panel_name:
+            type: string
+            required: true
+            label: "Panel"
+            description: "Name of lab panel (CBC, CMP, BMP, Lipid Panel, Thyroid, UA, etc.)"
+            examples: ["Complete Blood Count (CBC)", "Comprehensive Metabolic Panel (CMP)", "Basic Metabolic Panel (BMP)", "Lipid Panel", "Thyroid Panel", "Urinalysis"]
+
+          results_summary:
+            type: text
+            required: true
+            label: "Results"
+            description: |
+              Summary of ALL test results in the panel. Format as:
+              Test: Value (Reference) [Flag if abnormal]
+              Include EVERY test, not just abnormal ones. Example:
+              "WBC: 7.2 (4.5-11.0), RBC: 4.8 (4.2-5.9), Hgb: 14.2 (12-16), Hct: 42% (36-46%), Platelets: 245 (150-400)"
+
+          abnormal_findings:
+            type: array
+            items: string
+            required: false
+            label: "Abnormal"
+            description: "List only the abnormal values with flags (High/Low/Critical)"
+
+          clinical_significance:
+            type: text
+            required: false
+            description: "Clinical interpretation if provided in source"
+
+      # ---------------------------------------------------------------------------
+      # SURGICAL REPORT DETAILS
+      # ---------------------------------------------------------------------------
+      surgical_report:
+        applies_to: "surgical_report"
+        output_labels: ["Procedure", "Pre-op Dx", "Post-op Dx", "Findings", "Surgeon"]
+        fields:
+          procedure_name:
+            type: string
+            required: true
+            label: "Procedure"
+            description: "Name of surgical procedure performed. If exact name is unclear from OCR, summarize based on operative findings."
+
+          preoperative_diagnosis:
+            type: string
+            required: true
+            label: "Pre-op Dx"
+            description: "Diagnosis prior to surgery. Fix minor OCR typos if necessary to make readable."
+
+          postoperative_diagnosis:
+            type: string
+            required: true
+            label: "Post-op Dx"
+            description: "Diagnosis after surgery (may differ from pre-op). Fix minor OCR typos if necessary."
+
+          operative_findings:
+            type: text
+            required: false
+            label: "Findings"
+            description: "Summary of key intraoperative findings. Fix OCR typos if necessary to make readable."
+
+          surgeon:
+            type: string
+            required: true
+            label: "Surgeon"
+            description: "Operating surgeon name with credentials"
+
+          complications:
+            type: text
+            required: false
+            description: "Any complications noted"
+
+          anesthesia_type:
+            type: string
+            required: false
+            description: "Type of anesthesia used (General, Local, Spinal, etc.)"
+
+      # ---------------------------------------------------------------------------
+      # CONSULTATIVE EXAMINATION (SSA/DDS Ordered)
+      # ---------------------------------------------------------------------------
+      consultative_exam:
+        applies_to: "consultative_exam"
+        output_labels: ["Type", "Examiner", "History", "Findings", "Functional Opinion"]
+        fields:
+          ce_type:
+            type: enum
+            required: true
+            values: ["Internal Medicine", "Orthopedic", "Neurological", "Psychological", "Speech/Language", "Other"]
+            label: "Type"
+            description: "Type of consultative examination"
+
+          examiner_specialty:
+            type: string
+            required: false
+            description: "e.g. Psychologist, Orthopedist"
+
+          referral_source:
+            type: string
+            required: false
+            description: "DDS, SSA, or Claimant Attorney"
+
+          history_of_complaint:
+            type: text
+            required: false
+            label: "History"
+            description: "Claimant's reported history and symptoms"
+
+          physical_findings:
+            type: object
+            required: false
+            description: "Physical exam findings (for physical CEs)"
+            fields:
+              general_appearance:
+                type: string
+              range_of_motion:
+                type: string
+              strength_neuro:
+                type: string
+              gait_ambulation:
+                type: string
+              assistive_devices:
+                type: string
+
+          mental_findings:
+            type: object
+            required: false
+            description: "Mental status findings (for psychological CEs)"
+            fields:
+              appearance_behavior:
+                type: string
+              mood_affect:
+                type: string
+              thought_process:
+                type: string
+              memory_concentration:
+                type: string
+              insight_judgment:
+                type: string
+
+          diagnostic_impression:
+            type: array
+            items: string
+            required: false
+            label: "Dx"
+            description: "Diagnostic impressions"
+
+          functional_opinion:
+            type: text
+            required: true
+            label: "Opinion"
+            description: "CRITICAL: Statement on functional limitations (e.g., 'Can sit 4 hours', 'Marked limit in social interaction')"
+
+          prognosis:
+            type: string
+            required: false
+            description: "Expected course of condition"
+
+      # ---------------------------------------------------------------------------
+      # PSYCHIATRIC / MENTAL HEALTH VISIT
+      # ---------------------------------------------------------------------------
+      psych_visit:
+        applies_to: "psych_visit"
+        output_labels: ["History", "MSE", "Risk", "Response", "Plan"]
+        fields:
+          interval_history:
+            type: text
+            required: false
+            label: "History"
+            description: "Sleep, appetite, energy, mood, response to meds since last visit"
+
+          mental_status_exam:
+            type: object
+            required: true
+            label: "MSE"
+            description: "Structured mental status examination"
+            fields:
+              appearance_behavior:
+                type: string
+                description: "Hygiene, eye contact, agitation"
+              mood_affect:
+                type: string
+                description: "Depressed, anxious, blunted, flat"
+              speech_thought:
+                type: string
+                description: "Rapid, tangential, flight of ideas"
+              perception_cognition:
+                type: string
+                description: "Hallucinations, memory, concentration"
+              insight_judgment:
+                type: string
+                description: "Poor, fair, intact"
+
+          risk_assessment:
+            type: string
+            required: false
+            label: "Risk"
+            description: "Suicidal/Homicidal ideation, self-harm, plan, intent"
+
+          treatment_response:
+            type: text
+            required: false
+            label: "Response"
+            description: "Response to medications, side effects, compliance"
+
+          plan:
+            type: text
+            required: false
+            label: "Plan"
+            description: "Treatment plan and follow-up"
+
+      # ---------------------------------------------------------------------------
+      # DIAGNOSTIC STUDY (EMG, EKG, EEG, Sleep Study)
+      # ---------------------------------------------------------------------------
+      diagnostic_study:
+        applies_to: "diagnostic_study"
+        output_labels: ["Study", "Indication", "Findings", "Interpretation"]
+        fields:
+          study_type:
+            type: string
+            required: true
+            label: "Study"
+            examples: ["EMG/NCS", "EKG", "EEG", "Cardiac Stress Test", "Sleep Study", "Pulmonary Function Test"]
+            description: "Type of diagnostic study"
+
+          indication:
+            type: text
+            required: false
+            label: "Indication"
+            description: "Why the study was ordered"
+
+          technical_findings:
+            type: text
+            required: true
+            label: "Findings"
+            description: "Raw data, measurements, waveform analysis"
+
+          interpretation:
+            type: text
+            required: true
+            label: "Interpretation"
+            description: "Physician's conclusion and clinical correlation"
+
+      # ---------------------------------------------------------------------------
+      # PROCEDURAL VISIT (Minor In-Office Procedures)
+      # ---------------------------------------------------------------------------
+      procedural_visit:
+        applies_to: "procedural_visit"
+        output_labels: ["Procedure", "Location", "Outcome"]
+        fields:
+          procedure_name:
+            type: string
+            required: true
+            label: "Procedure"
+            examples: ["Epidural Steroid Injection", "Trigger Point Injection", "Joint Aspiration", "Nerve Block"]
+            description: "Name of procedure performed"
+
+          anatomical_location:
+            type: string
+            required: true
+            label: "Location"
+            examples: ["L4-L5", "Right Trapezius", "Left Knee", "C5-C6"]
+            description: "Body location of procedure"
+
+          outcome:
+            type: text
+            required: false
+            label: "Outcome"
+            description: "Immediate response and patient tolerance"
+
+          complications:
+            type: string
+            required: false
+            description: "Any complications noted"
+
+      # ---------------------------------------------------------------------------
+      # EMERGENCY ROOM VISIT
+      # ---------------------------------------------------------------------------
+      emergency_visit:
+        applies_to: "emergency_visit"
+        output_labels: ["CC", "Triage", "Workup", "Disposition"]
+        fields:
+          chief_complaint:
+            type: text
+            required: true
+            label: "CC"
+            description: "Primary reason for ER visit"
+
+          mode_of_arrival:
+            type: string
+            required: false
+            label: "Arrival"
+            description: "e.g., Ambulance, Private Vehicle, Walk-in"
+
+          triage_notes:
+            type: text
+            required: false
+            label: "Triage"
+            description: "Initial assessment and vital signs summary"
+
+          clinical_course:
+            type: text
+            required: true
+            label: "Course"
+            description: "Treatments administered and response"
+
+          workup:
+            type: text
+            required: false
+            label: "Workup"
+            description: "Labs and imaging performed"
+
+          disposition:
+            type: string
+            required: true
+            label: "Disposition"
+            description: "e.g., Admitted, Discharged home, Transferred"
+
+      # ---------------------------------------------------------------------------
+      # INPATIENT ADMISSION
+      # ---------------------------------------------------------------------------
+      inpatient_admission:
+        applies_to: "inpatient_admission"
+        output_labels: ["Admission", "Discharge", "Dx", "Course"]
+        fields:
+          admission_date:
+            type: date
+            required: true
+            label: "Admit Date"
+            description: "Date of hospital admission"
+
+          discharge_date:
+            type: date
+            required: true
+            label: "Discharge Date"
+            description: "Date of discharge"
+
+          admission_diagnosis:
+            type: string
+            required: false
+            label: "Admit Dx"
+            description: "Reason for admission"
+
+          discharge_diagnoses:
+            type: array
+            items: string
+            required: true
+            label: "Discharge Dx"
+            description: "Final diagnoses"
+
+          hospital_course:
+            type: text
+            required: true
+            label: "Course"
+            description: "Summary of hospital stay, procedures, and treatments"
+
+          discharge_condition:
+            type: string
+            required: false
+            label: "Condition"
+            description: "Patient condition at discharge (e.g., Stable, Improved)"
+
+      # ---------------------------------------------------------------------------
+      # MEDICAL SOURCE STATEMENT (RFC, MSS, Opinion Letters)
+      # ---------------------------------------------------------------------------
+      medical_source_statement:
+        applies_to: "medical_source_statement"
+        output_labels: ["Type", "Limitations", "Basis"]
+        fields:
+          opinion_type:
+            type: string
+            required: true
+            label: "Type"
+            description: "e.g., Physical RFC, Mental RFC, Medical Source Statement"
+
+          functional_limitations:
+            type: array
+            items: string
+            required: true
+            label: "Limitations"
+            description: "Specific functional restrictions identified"
+
+          supportive_evidence:
+            type: text
+            required: false
+            label: "Basis"
+            description: "Clinical findings cited to support limitations"
+
+          opinion_weight:
+            type: string
+            required: false
+            label: "Weight"
+            description: "Statement on weight given to opinion (if ALJ decision)"
+
+# =============================================================================
+# OUTPUT FORMATTING RULES
+# =============================================================================
+
+output_formatting:
+  table_columns:
+    - header: "DOS"
+      field: "date"
+      width: "10%"
+    - header: "Provider"
+      field: "provider"
+      width: "15%"
+    - header: "Facility"
+      field: "facility"
+      width: "15%"
+    - header: "Occurrence/Treatment"
+      field: "occurrence_treatment"
+      width: "50%"
+    - header: "Source"
+      field: "exhibit_reference"
+      width: "10%"
+
+  occurrence_treatment_formatting:
+    description: "Format the dynamic content using visit-type-specific labels"
+    rules:
+      - "Use the output_labels defined for each visit type"
+      - "Separate label from content with colon and space"
+      - "Use line breaks between fields for readability"
+      - "Omit empty/null fields from output"
+
+    examples:
+      office_visit: |
+        CC: Headache, tremors
+        Dx: Parkinson disease, cervical radiculopathy
+        Plan: Order MRI, refer to neurology
+
+      imaging_report: |
+        Type: MRI L-Spine
+        Indication: Back pain, radiculopathy
+        Findings: Small annular tear at L4/L5 with mild disc bulge
+        Impression: Minimal foraminal narrowing, no high-grade stenosis
+
+      therapy_eval: |
+        Therapy Type: Physical Therapy
+        Subjective: B/L hand numbness, neck pain, cannot drive
+        Objective: Forward head posture, extreme hyperalgesia RUE
+        Assessment: Cervical radiculopathy, poor prognosis for therapy
+
+      surgical_report: |
+        Procedure: Right total knee arthroplasty
+        Pre-op Dx: Severe DJD right knee with OCD lesion
+        Post-op Dx: Same
+        Surgeon: Paul Edwards, MD
+
+# =============================================================================
+# EXTRACTION EXAMPLES
+# =============================================================================
+
+examples:
+  - visit_type: "office_visit"
+    input: |
+      PATIENT: John Doe  DOS: 03/15/2022  PROVIDER: Yuanyuan Long, MD
+      CHIEF COMPLAINT: Headache, Tremors
+      ASSESSMENT: Pre-op testing, excessive daytime sleepiness, tremors,
+      Parkinson disease, cervical radiculopathy, lumbar radiculopathy
+      PLAN: PSG study, EMG/NCV BLE, return in 2-3 weeks
+    output:
+      date: "03/15/2022"
+      provider: "Yuanyuan Long, MD"
+      facility: "Baptist Clinic"
+      exhibit_reference: "2F@621"
+      page_range: "621-627"
+      visit_type: "office_visit"
+      occurrence_treatment:
+        chief_complaint: "Headache, Tremors"
+        assessment_diagnoses:
+          - "Pre-op testing"
+          - "Excessive daytime sleepiness"
+          - "Tremors of nervous system"
+          - "Parkinson disease"
+          - "Cervical radiculopathy"
+          - "Lumbar radiculopathy"
+        plan_of_care: "PSG study, EMG/NCV BLE, return in 2-3 weeks"
+
+  - visit_type: "imaging_report"
+    input: |
+      MRI LUMBAR SPINE  Date: 12/16/2020
+      INDICATION: Back pain, radiculopathy, muscle weakness
+      IMPRESSION: Small annular tear at L4/L5 with mild broad-based disc
+      bulge with minimal bilateral foraminal narrowing. No high-grade
+      central canal or foraminal narrowing identified.
+    output:
+      date: "12/16/2020"
+      provider: "Not Specified"
+      facility: "Not Specified"
+      exhibit_reference: "2F@357"
+      page_range: "357-361"
+      visit_type: "imaging_report"
+      occurrence_treatment:
+        imaging_type: "MRI"
+        body_part: "Lumbar Spine"
+        indication: "Back pain, radiculopathy, muscle weakness"
+        findings: "Small annular tear at L4/L5 with mild broad-based disc bulge"
+        impression: "Minimal bilateral foraminal narrowing. No high-grade central canal or foraminal narrowing."
+
+  - visit_type: "therapy_eval"
+    input: |
+      PHYSICAL THERAPY EVALUATION  Date: 04/01/2021
+      Provider: Kyle J Stroup, PT
+      SUBJECTIVE: B/L hand numbness and pain, Rt>Lt, neck pain.
+      Extreme hypersensitivity in Rt hand starting 3 days ago. Cannot drive.
+      OBJECTIVE: Forward head, rounded shoulders. RUE held in position of
+      comfort. Unable to assess MMT accurately. Extreme hyperalgesia.
+      ASSESSMENT: Cervicalgia, pain in limb, cervical radiculopathy.
+      PROGNOSIS: Poor for therapy until acute flare resolved.
+    output:
+      date: "04/01/2021"
+      provider: "Kyle J Stroup, PT"
+      facility: "Kyle J Stroup, PT"
+      exhibit_reference: "2F@455"
+      page_range: "455-458"
+      visit_type: "therapy_eval"
+      occurrence_treatment:
+        therapy_type: "Physical Therapy"
+        subjective_complaints: "B/L hand numbness and pain, Rt>Lt, neck pain. Extreme hypersensitivity in Rt hand. Cannot drive."
+        objective_measurements:
+          - "Forward head, rounded shoulders"
+          - "RUE held in position of comfort"
+          - "Unable to assess MMT accurately"
+          - "Extreme hyperalgesia of cervical spine and RUE"
+        assessment: "Cervicalgia, pain in limb, cervical radiculopathy. Poor prognosis until acute flare resolved."
+
+  - visit_type: "surgical_report"
+    input: |
+      OPERATIVE REPORT  Date: 01/27/2022
+      PROCEDURE: Right total knee replacement
+      PRE-OP DIAGNOSIS: Severe DJD osteoarthritis right knee
+      POST-OP DIAGNOSIS: Same
+      SURGEON: Paul Edwards, MD
+    output:
+      date: "01/27/2022"
+      provider: "Paul Edwards, MD"
+      facility: "Little Rock"
+      exhibit_reference: "2F@621"
+      page_range: "621-627"
+      visit_type: "surgical_report"
+      occurrence_treatment:
+        procedure_name: "Right total knee replacement"
+        preoperative_diagnosis: "Severe DJD osteoarthritis right knee"
+        postoperative_diagnosis: "Severe DJD osteoarthritis right knee"
+        surgeon: "Paul Edwards, MD"
+
+  - visit_type: "lab_result"
+    input: |
+      LABORATORY RESULTS  Date: 03/10/2022
+      HbA1c: 8.2% (Reference: 4.0-5.6%)  HIGH
+      Creatinine: 1.4 mg/dL (Reference: 0.7-1.3)  HIGH
+      eGFR: 52 mL/min (Reference: >60)  LOW
+    output:
+      date: "03/10/2022"
+      provider: "Not Specified"
+      facility: "Not Specified"
+      exhibit_reference: "3F@42"
+      page_range: "42-43"
+      visit_type: "lab_result"
+      occurrence_treatment:
+        test_name: "HbA1c, Creatinine, eGFR"
+        result_value: "HbA1c 8.2%, Creatinine 1.4 mg/dL, eGFR 52 mL/min"
+        reference_range: "HbA1c 4.0-5.6%, Creatinine 0.7-1.3, eGFR >60"
+        abnormal_flag: "High"
+        clinical_significance: "Elevated HbA1c indicates poor glycemic control; reduced eGFR suggests Stage 3a CKD"
+
+# =============================================================================
+# VALIDATION RULES
+# =============================================================================
+
+validation_rules:
+  required_fields:
+    - "Every entry must have date, exhibit_reference, and visit_type"
+    - "Provider defaults to 'Not Specified' if not found"
+    - "Facility defaults to 'Not Specified' if not found"
+
+  date_validation:
+    - "Dates must be in MM/DD/YYYY format"
+    - "Reject entries without identifiable dates"
+    - "Flag entries with estimated dates (e.g., 'approximately March 2022')"
+
+  exhibit_reference_validation:
+    - "Must include exhibit number and page (e.g., '2F@12')"
+    - "Page ranges acceptable (e.g., '2F@12-15')"
+
+  content_validation:
+    - "Use exact medical terminology from source"
+    - "Do not interpret or add diagnoses not in source"
+    - "Preserve clinical abbreviations as written"
+
+# =============================================================================
+# QUALITY CONTROL CHECKLIST
+# =============================================================================
+
+quality_control:
+  extraction_checklist:
+    - "Every entry has complete exhibit citation"
+    - "Entries sorted reverse chronologically"
+    - "Visit types correctly classified"
+    - "Both subjective and objective findings captured for office visits"
+    - "Imaging reports include both findings and impression"
+    - "Surgical reports include pre-op and post-op diagnoses"
+
+  prohibited_content:
+    - "ALJ decisions or legal conclusions"
+    - "Interpretation beyond source material"
+    - "Speculative diagnoses"
+    - "Content from sections other than F"

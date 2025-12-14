@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChartVision - Medical Chronology Generator</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- v2.1 - Added all 12 visit types: consultative_exam, psych_visit, diagnostic_study, procedural_visit, emergency_visit, inpatient_admission, medical_source_statement -->
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="header-brand">
+      <h1>ChartVision</h1>
+      <span class="header-subtitle">Medical Chronology Generator</span>
+    </div>
+    <div class="header-controls">
+      <div class="step-indicator">
+        <span class="step active" data-step="1">1</span>
+        <span class="step-line"></span>
+        <span class="step" data-step="2">2</span>
+        <span class="step-line"></span>
+        <span class="step" data-step="3">3</span>
+      </div>
+      <div class="header-buttons" id="exportButtons" style="display: none;">
+        <button id="downloadPdfBtn">Download PDF</button>
+        <button id="copyBtn">Copy</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Step 1: Upload -->
+    <section id="step1" class="wizard-step active">
+      <div class="step-content">
+        <div id="dropZone">
+          <div class="drop-icon">📄</div>
+          <p class="drop-title">Drop ERE Case File (PDF)</p>
+          <p class="drop-subtitle">or click to browse</p>
+          <input type="file" id="fileInput" accept=".pdf" hidden>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 2: Processing -->
+    <section id="step2" class="wizard-step">
+      <div class="step-content">
+        <div class="processing-card">
+          <h2>Processing...</h2>
+          <div class="file-info" id="fileInfo">
+            <span class="file-name" id="fileName">document.pdf</span>
+          </div>
+          <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+          <div class="progress-status" id="progressStatus">Uploading...</div>
+
+          <div class="event-log">
+            <div class="log-header">Event Log</div>
+            <div id="logContent"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 3: View Chronology -->
+    <section id="step3" class="wizard-step">
+      <div class="chronology-container">
+        <div id="chronologyOutput"></div>
+        <div class="chronology-footer">
+          <button id="newUploadBtn" class="secondary-btn">New Upload</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Config
+    const API_BASE = 'http://localhost:8811';
+    const API_KEY = 'ere-api-key-2024';
+
+    // State
+    let currentStep = 1;
+    let currentJobId = null;
+    let pollInterval = null;
+
+    // Elements
+    const steps = document.querySelectorAll('.wizard-step');
+    const stepIndicators = document.querySelectorAll('.step-indicator .step');
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const progressBar = document.getElementById('progressBar');
+    const progressStatus = document.getElementById('progressStatus');
+    const logContent = document.getElementById('logContent');
+    const chronologyOutput = document.getElementById('chronologyOutput');
+    const exportButtons = document.getElementById('exportButtons');
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const newUploadBtn = document.getElementById('newUploadBtn');
+
+    // Step navigation
+    function goToStep(step) {
+      currentStep = step;
+      steps.forEach((s, i) => {
+        s.classList.toggle('active', i + 1 === step);
+      });
+      stepIndicators.forEach((s, i) => {
+        s.classList.toggle('active', i + 1 <= step);
+        s.classList.toggle('completed', i + 1 < step);
+      });
+      exportButtons.style.display = step === 3 ? 'flex' : 'none';
+    }
+
+    // Logging
+    function log(message, type = 'info') {
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `${time} → ${message}`;
+      logContent.appendChild(entry);
+      logContent.scrollTop = logContent.scrollHeight;
+    }
+
+    // File upload handling
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type === 'application/pdf') {
+        handleFile(file);
+      }
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files[0]) {
+        handleFile(e.target.files[0]);
+      }
+    });
+
+    async function handleFile(file) {
+      fileName.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+      logContent.innerHTML = '';
+      goToStep(2);
+
+      log(`Uploading ${file.name}...`);
+      progressBar.style.width = '10%';
+      progressStatus.textContent = 'Uploading...';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        // Submit to ERE API
+        const response = await fetch(`${API_BASE}/api/v1/ere/process`, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ere-api-key-2024'
+          },
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || 'Upload failed');
+        }
+
+        currentJobId = data.job_id;
+        log(`Job created: ${currentJobId}`);
+        progressBar.style.width = '20%';
+        progressStatus.textContent = 'Processing...';
+
+        // Start polling for status
+        pollJobStatus();
+
+      } catch (error) {
+        log(error.message, 'error');
+        progressStatus.textContent = 'Error: ' + error.message;
+      }
+    }
+
+    async function pollJobStatus() {
+      if (pollInterval) clearInterval(pollInterval);
+
+      pollInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`${API_BASE}/api/v1/ere/status/${currentJobId}`, {
+            headers: {
+              'Authorization': 'Bearer ere-api-key-2024'
+            }
+          });
+
+          const data = await response.json();
+
+          // Update progress
+          const progress = data.progress || 0;
+          progressBar.style.width = `${20 + progress * 0.7}%`;
+          progressStatus.textContent = data.current_step || 'Processing...';
+
+          if (data.status === 'completed') {
+            clearInterval(pollInterval);
+            log('Processing complete!', 'success');
+            progressBar.style.width = '100%';
+
+            // Fetch results
+            await fetchResults();
+
+          } else if (data.status === 'failed') {
+            clearInterval(pollInterval);
+            log(`Error: ${data.error}`, 'error');
+            progressStatus.textContent = 'Processing failed';
+          }
+
+        } catch (error) {
+          log(`Poll error: ${error.message}`, 'error');
+        }
+      }, 2000);
+    }
+
+    async function fetchResults() {
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/ere/results/${currentJobId}`, {
+          headers: {
+            'Authorization': 'Bearer ere-api-key-2024'
+          }
+        });
+
+        const data = await response.json();
+
+        // Check for markdown path
+        if (data.results?.markdown_path) {
+          // Fetch the markdown content
+          const mdResponse = await fetch(`/files/${data.results.markdown_path}`);
+          if (mdResponse.ok) {
+            const markdown = await mdResponse.text();
+            displayChronology(markdown);
+          } else {
+            // Fallback: generate display from results
+            displayFromResults(data.results);
+          }
+        } else {
+          displayFromResults(data.results);
+        }
+
+        goToStep(3);
+
+      } catch (error) {
+        log(`Fetch error: ${error.message}`, 'error');
+      }
+    }
+
+    function displayChronology(markdown) {
+      chronologyOutput.innerHTML = marked.parse(markdown);
+      chronologyOutput.dataset.rawMarkdown = markdown;
+      applyChronologyStyling();
+    }
+
+    // Build occurrence/treatment summary for table cell based on visit type
+    function buildOccurrenceSummary(occ, visitType) {
+      if (!occ || Object.keys(occ).length === 0) return 'N/A';
+
+      const parts = [];
+
+      // Handle different visit types - using HTML <strong> for bold (not markdown **)
+      if (visitType === 'office_visit' || !visitType) {
+        if (occ.chief_complaint) parts.push(`<strong>CC:</strong> ${occ.chief_complaint}`);
+        if (occ.history_present_illness) {
+          parts.push(`<strong>HPI:</strong> ${occ.history_present_illness}`);
+        }
+        if (occ.physical_exam_findings) {
+          const exam = Array.isArray(occ.physical_exam_findings)
+            ? occ.physical_exam_findings.join('; ')
+            : occ.physical_exam_findings;
+          parts.push(`<strong>Exam:</strong> ${exam}`);
+        }
+        if (occ.assessment_diagnoses && (!Array.isArray(occ.assessment_diagnoses) || occ.assessment_diagnoses.length > 0)) {
+          const dx = Array.isArray(occ.assessment_diagnoses)
+            ? occ.assessment_diagnoses.join('; ')
+            : occ.assessment_diagnoses;
+          if (dx) parts.push(`<strong>Dx:</strong> ${dx}`);
+        }
+        if (occ.plan_of_care) {
+          parts.push(`<strong>Plan:</strong> ${occ.plan_of_care}`);
+        }
+      } else if (visitType === 'therapy_eval') {
+        const therapyType = (occ.therapy_type || '').replace(/_/g, ' ');
+        if (therapyType) parts.push(`<strong>Therapy Type:</strong> ${therapyType}`);
+        if (occ.subjective_complaints) {
+          parts.push(`<strong>Subjective:</strong> ${occ.subjective_complaints}`);
+        }
+        if (occ.objective_measurements) {
+          const obj = Array.isArray(occ.objective_measurements)
+            ? occ.objective_measurements.join('; ')
+            : occ.objective_measurements;
+          parts.push(`<strong>Objective:</strong> ${obj}`);
+        }
+        if (occ.assessment) parts.push(`<strong>Assessment:</strong> ${occ.assessment}`);
+        if (occ.plan) parts.push(`<strong>Plan:</strong> ${occ.plan}`);
+        if (occ.progress_towards_goals) parts.push(`<strong>Progress:</strong> ${occ.progress_towards_goals}`);
+        // Fallback: LLM sometimes returns office_visit fields for therapy evals
+        if (parts.length === 0) {
+          if (occ.assessment_diagnoses) {
+            const dx = Array.isArray(occ.assessment_diagnoses)
+              ? occ.assessment_diagnoses.join('; ')
+              : occ.assessment_diagnoses;
+            parts.push(`<strong>Assessment:</strong> ${dx}`);
+          }
+          if (occ.plan_of_care) {
+            parts.push(`<strong>Plan:</strong> ${occ.plan_of_care}`);
+          }
+        }
+      } else if (visitType === 'imaging_report') {
+        // Proper imaging_report schema fields
+        if (occ.imaging_type) {
+          const typeStr = occ.body_part ? `${occ.imaging_type} ${occ.body_part}` : occ.imaging_type;
+          parts.push(`<strong>Type:</strong> ${typeStr}`);
+        }
+        if (occ.indication) parts.push(`<strong>Indication:</strong> ${occ.indication}`);
+        if (occ.findings) {
+          parts.push(`<strong>Findings:</strong> ${occ.findings}`);
+        }
+        if (occ.impression) parts.push(`<strong>Impression:</strong> ${occ.impression}`);
+        // Fallback: LLM sometimes returns office_visit fields for imaging reports
+        if (parts.length === 0) {
+          if (occ.assessment_diagnoses) {
+            const dx = Array.isArray(occ.assessment_diagnoses)
+              ? occ.assessment_diagnoses.join('; ')
+              : occ.assessment_diagnoses;
+            parts.push(`<strong>Findings:</strong> ${dx}`);
+          }
+          if (occ.plan_of_care) {
+            parts.push(`<strong>Study:</strong> ${occ.plan_of_care}`);
+          }
+        }
+      } else if (visitType === 'lab_result') {
+        // New panel-based format (preferred)
+        if (occ.panel_name) parts.push(`<strong>Panel:</strong> ${occ.panel_name}`);
+        if (occ.results_summary) {
+          parts.push(`<strong>Results:</strong> ${occ.results_summary}`);
+        }
+        if (occ.abnormal_findings && occ.abnormal_findings.length > 0) {
+          const abnormals = Array.isArray(occ.abnormal_findings)
+            ? occ.abnormal_findings.join(', ')
+            : occ.abnormal_findings;
+          parts.push(`<strong>Abnormal:</strong> ${abnormals}`);
+        }
+        // Legacy single-test format fallback
+        if (!occ.panel_name && occ.test_name) {
+          parts.push(`<strong>Test:</strong> ${occ.test_name}`);
+          if (occ.result_value) parts.push(`<strong>Result:</strong> ${occ.result_value}`);
+          if (occ.reference_range) parts.push(`<strong>Reference:</strong> ${occ.reference_range}`);
+          if (occ.abnormal_flag) parts.push(`<strong>Flag:</strong> ${occ.abnormal_flag}`);
+        }
+      } else if (visitType === 'surgical_report') {
+        if (occ.procedure_name) parts.push(`<strong>Procedure:</strong> ${occ.procedure_name}`);
+        if (occ.preoperative_diagnosis) parts.push(`<strong>Pre-op Dx:</strong> ${occ.preoperative_diagnosis}`);
+        if (occ.postoperative_diagnosis) parts.push(`<strong>Post-op Dx:</strong> ${occ.postoperative_diagnosis}`);
+        // Handle both 'operative_findings' (from YAML template) and 'findings' (legacy)
+        const opFindings = occ.operative_findings || occ.findings;
+        if (opFindings) {
+          parts.push(`<strong>Findings:</strong> ${opFindings}`);
+        }
+        if (occ.surgeon) parts.push(`<strong>Surgeon:</strong> ${occ.surgeon}`);
+        if (occ.anesthesia_type) parts.push(`<strong>Anesthesia:</strong> ${occ.anesthesia_type}`);
+        if (occ.complications) parts.push(`<strong>Complications:</strong> ${occ.complications}`);
+      } else if (visitType === 'consultative_exam') {
+        // CE type header
+        const ceType = occ.ce_type || occ.examiner_specialty || 'CE';
+        parts.push(`<strong>${ceType} CE</strong>`);
+        if (occ.history_of_complaint) {
+          parts.push(`<strong>History:</strong> ${occ.history_of_complaint}`);
+        }
+        // Physical findings
+        if (occ.physical_findings) {
+          const pf = occ.physical_findings;
+          if (pf.gait_ambulation) parts.push(`<strong>Gait:</strong> ${pf.gait_ambulation}`);
+          if (pf.range_of_motion) parts.push(`<strong>ROM:</strong> ${pf.range_of_motion}`);
+          if (pf.strength_neuro) parts.push(`<strong>Strength:</strong> ${pf.strength_neuro}`);
+        }
+        // Mental findings
+        if (occ.mental_findings) {
+          const mf = occ.mental_findings;
+          if (mf.mood_affect) parts.push(`<strong>Mood/Affect:</strong> ${mf.mood_affect}`);
+          if (mf.memory_concentration) parts.push(`<strong>Memory:</strong> ${mf.memory_concentration}`);
+        }
+        if (occ.diagnostic_impression) {
+          const dx = Array.isArray(occ.diagnostic_impression)
+            ? occ.diagnostic_impression.join('; ')
+            : occ.diagnostic_impression;
+          parts.push(`<strong>Dx:</strong> ${dx}`);
+        }
+        if (occ.functional_opinion) {
+          parts.push(`<strong>Functional:</strong> ${occ.functional_opinion}`);
+        }
+      } else if (visitType === 'psych_visit') {
+        if (occ.interval_history) {
+          parts.push(`<strong>History:</strong> ${occ.interval_history}`);
+        }
+        // Mental status exam - handle both dict and string
+        if (occ.mental_status_exam) {
+          if (typeof occ.mental_status_exam === 'object') {
+            const mse = occ.mental_status_exam;
+            if (mse.mood_affect) parts.push(`<strong>Mood/Affect:</strong> ${mse.mood_affect}`);
+            if (mse.insight_judgment) parts.push(`<strong>Insight:</strong> ${mse.insight_judgment}`);
+          } else {
+            parts.push(`<strong>MSE:</strong> ${occ.mental_status_exam}`);
+          }
+        }
+        if (occ.risk_assessment) parts.push(`<strong>Risk:</strong> ${occ.risk_assessment}`);
+        if (occ.treatment_response) parts.push(`<strong>Response:</strong> ${occ.treatment_response}`);
+      } else if (visitType === 'diagnostic_study') {
+        if (occ.study_type) parts.push(`<strong>Study:</strong> ${occ.study_type}`);
+        if (occ.indication) parts.push(`<strong>Indication:</strong> ${occ.indication}`);
+        if (occ.technical_findings) {
+          parts.push(`<strong>Findings:</strong> ${occ.technical_findings}`);
+        }
+        if (occ.interpretation) {
+          parts.push(`<strong>Interpretation:</strong> ${occ.interpretation}`);
+        }
+      } else if (visitType === 'procedural_visit') {
+        if (occ.procedure_name) parts.push(`<strong>Procedure:</strong> ${occ.procedure_name}`);
+        if (occ.anatomical_location) parts.push(`<strong>Location:</strong> ${occ.anatomical_location}`);
+        if (occ.outcome) parts.push(`<strong>Outcome:</strong> ${occ.outcome}`);
+      } else if (visitType === 'emergency_visit') {
+        if (occ.chief_complaint) parts.push(`<strong>CC:</strong> ${occ.chief_complaint}`);
+        if (occ.mode_of_arrival) parts.push(`<strong>Arrival:</strong> ${occ.mode_of_arrival}`);
+        if (occ.clinical_course) {
+          parts.push(`<strong>Course:</strong> ${occ.clinical_course}`);
+        }
+        if (occ.workup) parts.push(`<strong>Workup:</strong> ${occ.workup}`);
+        if (occ.disposition) parts.push(`<strong>Disposition:</strong> ${occ.disposition}`);
+      } else if (visitType === 'inpatient_admission') {
+        if (occ.admission_date) parts.push(`<strong>Admit:</strong> ${occ.admission_date}`);
+        if (occ.discharge_date) parts.push(`<strong>Discharge:</strong> ${occ.discharge_date}`);
+        if (occ.admission_diagnosis) parts.push(`<strong>Admit Dx:</strong> ${occ.admission_diagnosis}`);
+        if (occ.discharge_diagnoses) {
+          const dx = Array.isArray(occ.discharge_diagnoses)
+            ? occ.discharge_diagnoses.join('; ')
+            : occ.discharge_diagnoses;
+          parts.push(`<strong>Discharge Dx:</strong> ${dx}`);
+        }
+        if (occ.hospital_course) {
+          parts.push(`<strong>Course:</strong> ${occ.hospital_course}`);
+        }
+        if (occ.discharge_condition) parts.push(`<strong>Condition:</strong> ${occ.discharge_condition}`);
+      } else if (visitType === 'medical_source_statement') {
+        if (occ.source_specialty) parts.push(`<strong>Specialty:</strong> ${occ.source_specialty}`);
+        if (occ.treating_relationship) parts.push(`<strong>Relationship:</strong> ${occ.treating_relationship}`);
+        if (occ.diagnoses_assessed) {
+          const dx = Array.isArray(occ.diagnoses_assessed)
+            ? occ.diagnoses_assessed.join('; ')
+            : occ.diagnoses_assessed;
+          parts.push(`<strong>Dx:</strong> ${dx}`);
+        }
+        if (occ.functional_limitations) {
+          parts.push(`<strong>Limitations:</strong> ${occ.functional_limitations}`);
+        }
+        if (occ.prognosis) parts.push(`<strong>Prognosis:</strong> ${occ.prognosis}`);
+      }
+
+      // Fallback: show any available data if no specific fields matched
+      // This handles cases where the LLM returns office_visit fields for other visit types
+      if (parts.length === 0) {
+        const fallbackFields = [
+          'chief_complaint', 'assessment', 'findings', 'impression',
+          'assessment_diagnoses', 'plan_of_care',  // Often returned for imaging/therapy when LLM uses office_visit schema
+          'procedure_name', 'therapy_type', 'subjective_complaints',
+          'study_type', 'interpretation', 'functional_opinion',
+          'functional_limitations', 'interval_history', 'hospital_course',
+          'results_summary', 'panel_name', 'test_name', 'result_value'  // Lab fallbacks
+        ];
+        for (const field of fallbackFields) {
+          if (occ[field]) {
+            let val;
+            if (Array.isArray(occ[field])) {
+              val = occ[field].join('; ');
+            } else if (typeof occ[field] === 'string') {
+              val = occ[field];
+            } else {
+              val = JSON.stringify(occ[field]);
+            }
+            const fieldLabel = field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            parts.push(`<strong>${fieldLabel}:</strong> ${val}`);
+          }
+        }
+      }
+
+      // Final fallback: check for raw_text_preview (from chunk merge failure)
+      // Note: raw_text_preview would be on the entry object, not occ - but we only have occ here
+      // This fallback is handled in the caller (displayFromResults) if needed
+
+      // Join with <br> for proper line breaks in table cells
+      let summary = parts.join('<br>');
+      // Escape pipe characters (but keep HTML tags)
+      summary = summary.replace(/\|/g, '/');
+
+      return summary || 'N/A';
+    }
+
+    function displayFromResults(results) {
+      // Build display from results object
+      let markdown = '# CHART VISION MEDICAL CHRONOLOGY\n\n';
+
+      // DDE Extraction (Section A)
+      if (results.dde_extracted && results.dde_extraction) {
+        markdown += '## Claimant Information\n\n';
+        const dde = results.dde_extraction;
+
+        // Required DDE fields - single spaced
+        markdown += `**Claimant:** ${dde.claimant_name || 'N/A'}  \n`;
+        markdown += `**Date of Birth:** ${dde.date_of_birth || 'N/A'}  \n`;
+        markdown += `**Claim Type:** ${dde.claim_type || 'N/A'}  \n`;
+        markdown += `**Protective Filing Date (PFD):** ${dde.protective_filing_date || 'N/A'}  \n`;
+        markdown += `**Alleged Onset Date:** ${dde.alleged_onset_date || 'N/A'}  \n`;
+        markdown += `**Age Category:** ${dde.age_category || dde.vocationalFactors?.age?.category || 'N/A'}  \n`;
+        if (dde.date_last_insured) {
+          markdown += `**Date Last Insured (DLI):** ${dde.date_last_insured}  \n`;
+        }
+
+        markdown += '\n---\n\n';
+
+        // Determination
+        if (dde.determination_decision) {
+          markdown += `**Determination:** ${dde.determination_decision.toUpperCase()}`;
+          if (dde.determination_level) markdown += ` (${dde.determination_level})`;
+          markdown += '\n\n';
+        }
+
+        // Exertional Capacity
+        if (dde.exertional_capacity) {
+          markdown += `**RFC Exertional Level:** ${dde.exertional_capacity}\n\n`;
+        }
+
+        // Medical Consultant
+        if (dde.medical_consultant) {
+          markdown += `**Medical Consultant:** ${dde.medical_consultant}\n\n`;
+        }
+
+        // RFC Limitations - Exertional
+        if (dde.exertional_limitations) {
+          markdown += '**Exertional Limitations:**\n';
+          const ex = dde.exertional_limitations;
+          if (ex.lift_carry_occasional) {
+            const occ = typeof ex.lift_carry_occasional === 'object'
+              ? ex.lift_carry_occasional.amount
+              : ex.lift_carry_occasional;
+            markdown += `- Occasional Lift/Carry: ${occ}\n`;
+          }
+          if (ex.lift_carry_frequent) {
+            const freq = typeof ex.lift_carry_frequent === 'object'
+              ? ex.lift_carry_frequent.amount
+              : ex.lift_carry_frequent;
+            markdown += `- Frequent Lift/Carry: ${freq}\n`;
+          }
+          if (ex.stand_walk_hours) markdown += `- Stand/Walk: ${ex.stand_walk_hours}\n`;
+          if (ex.sit_hours) markdown += `- Sit: ${ex.sit_hours}\n`;
+          if (ex.push_pull) markdown += `- Push/Pull: ${ex.push_pull}\n`;
+          markdown += '\n';
+        }
+
+        // Postural Limitations
+        if (dde.postural_limitations) {
+          const postural = dde.postural_limitations;
+          const hasLimitations = Object.values(postural).some(v => v && v !== 'Unlimited');
+          if (hasLimitations) {
+            markdown += '**Postural Limitations:**\n';
+            if (postural.climbing_ramps_stairs) markdown += `- Climbing Ramps/Stairs: ${postural.climbing_ramps_stairs}\n`;
+            if (postural.climbing_ladders_ropes_scaffolds) markdown += `- Climbing Ladders/Ropes/Scaffolds: ${postural.climbing_ladders_ropes_scaffolds}\n`;
+            if (postural.balancing) markdown += `- Balancing: ${postural.balancing}\n`;
+            if (postural.stooping) markdown += `- Stooping: ${postural.stooping}\n`;
+            if (postural.kneeling) markdown += `- Kneeling: ${postural.kneeling}\n`;
+            if (postural.crouching) markdown += `- Crouching: ${postural.crouching}\n`;
+            if (postural.crawling) markdown += `- Crawling: ${postural.crawling}\n`;
+            markdown += '\n';
+          }
+        }
+
+        // Manipulative Limitations
+        if (dde.manipulative_limitations) {
+          const manip = dde.manipulative_limitations;
+          const hasLimitations = Object.values(manip).some(v => v && v !== 'Unlimited');
+          if (hasLimitations) {
+            markdown += '**Manipulative Limitations:**\n';
+            if (manip.reaching_all_directions) markdown += `- Reaching (All Directions): ${manip.reaching_all_directions}\n`;
+            if (manip.reaching_overhead_left) markdown += `- Reaching Overhead (Left): ${manip.reaching_overhead_left}\n`;
+            if (manip.reaching_overhead_right) markdown += `- Reaching Overhead (Right): ${manip.reaching_overhead_right}\n`;
+            if (manip.handling) markdown += `- Handling: ${manip.handling}\n`;
+            if (manip.fingering) markdown += `- Fingering: ${manip.fingering}\n`;
+            if (manip.feeling) markdown += `- Feeling: ${manip.feeling}\n`;
+            // Legacy field support
+            if (manip.reaching_any_direction) markdown += `- Reaching: ${manip.reaching_any_direction}\n`;
+            markdown += '\n';
+          }
+        }
+
+        // Visual Limitations
+        if (dde.visual_limitations) {
+          const visual = dde.visual_limitations;
+          const hasLimitations = Object.values(visual).some(v => v && v !== 'Unlimited');
+          if (hasLimitations) {
+            markdown += '**Visual Limitations:**\n';
+            if (visual.near_acuity) markdown += `- Near Acuity: ${visual.near_acuity}\n`;
+            if (visual.far_acuity) markdown += `- Far Acuity: ${visual.far_acuity}\n`;
+            if (visual.depth_perception) markdown += `- Depth Perception: ${visual.depth_perception}\n`;
+            if (visual.accommodation) markdown += `- Accommodation: ${visual.accommodation}\n`;
+            if (visual.color_vision) markdown += `- Color Vision: ${visual.color_vision}\n`;
+            if (visual.field_of_vision) markdown += `- Field of Vision: ${visual.field_of_vision}\n`;
+            markdown += '\n';
+          }
+        }
+
+        // Communicative Limitations
+        if (dde.communicative_limitations) {
+          const comm = dde.communicative_limitations;
+          const hasLimitations = Object.values(comm).some(v => v && v !== 'Unlimited');
+          if (hasLimitations) {
+            markdown += '**Communicative Limitations:**\n';
+            if (comm.hearing) markdown += `- Hearing: ${comm.hearing}\n`;
+            if (comm.speaking) markdown += `- Speaking: ${comm.speaking}\n`;
+            markdown += '\n';
+          }
+        }
+
+        // Environmental Limitations
+        if (dde.environmental_limitations) {
+          const env = dde.environmental_limitations;
+          const hasLimitations = Object.values(env).some(v => v && v !== 'Unlimited');
+          if (hasLimitations) {
+            markdown += '**Environmental Limitations:**\n';
+            if (env.extreme_cold) markdown += `- Extreme Cold: ${env.extreme_cold}\n`;
+            if (env.extreme_heat) markdown += `- Extreme Heat: ${env.extreme_heat}\n`;
+            if (env.wetness) markdown += `- Wetness: ${env.wetness}\n`;
+            if (env.humidity) markdown += `- Humidity: ${env.humidity}\n`;
+            if (env.noise) markdown += `- Noise: ${env.noise}\n`;
+            if (env.vibration) markdown += `- Vibration: ${env.vibration}\n`;
+            if (env.fumes_odors_dusts_gases) markdown += `- Fumes/Odors/Dusts/Gases: ${env.fumes_odors_dusts_gases}\n`;
+            if (env.hazards_machinery) markdown += `- Hazards (Machinery): ${env.hazards_machinery}\n`;
+            if (env.hazards_heights) markdown += `- Hazards (Heights): ${env.hazards_heights}\n`;
+            markdown += '\n';
+          }
+        }
+
+        // Mental RFC - Paragraph B Criteria
+        if (dde.paragraph_b_criteria) {
+          const pb = dde.paragraph_b_criteria;
+          markdown += '**Mental RFC - Paragraph B Criteria:**\n';
+          if (pb.understand_remember_apply) markdown += `- Understand, Remember, or Apply: ${pb.understand_remember_apply}\n`;
+          if (pb.interact_with_others) markdown += `- Interact with Others: ${pb.interact_with_others}\n`;
+          if (pb.concentrate_persist_pace) markdown += `- Concentrate, Persist, or Maintain Pace: ${pb.concentrate_persist_pace}\n`;
+          if (pb.adapt_manage_oneself) markdown += `- Adapt or Manage Oneself: ${pb.adapt_manage_oneself}\n`;
+          markdown += '\n';
+        }
+
+        // Primary Diagnoses
+        if (dde.primary_diagnoses?.length > 0) {
+          markdown += '**Primary Diagnoses (MDIs):**\n';
+          dde.primary_diagnoses.forEach(dx => {
+            const code = dx.code ? ` (${dx.code})` : '';
+            const severity = dx.severity ? ` - ${dx.severity}` : '';
+            markdown += `- ${dx.description}${code}${severity}\n`;
+          });
+          markdown += '\n';
+        }
+
+        // Clinical Summary
+        if (dde.clinical_summary) {
+          markdown += `**Clinical Summary:**\n${dde.clinical_summary}\n\n`;
+        }
+
+        // ADL Limitations
+        if (dde.adl_limitations) {
+          markdown += `**ADL Limitations:** ${dde.adl_limitations}\n\n`;
+        }
+
+        // Legacy format support (determinationHistory, etc.)
+        if (dde.determinationHistory?.initial) {
+          const initial = dde.determinationHistory.initial;
+          if (initial.decision) {
+            markdown += `**Determination:** ${initial.decision.toUpperCase()}`;
+            if (initial.determinationDate) {
+              markdown += ` (${initial.determinationDate})`;
+            }
+            markdown += '\n\n';
+          }
+        }
+
+        if (dde.vocationalFactors?.age?.category) {
+          markdown += `**Age Category:** ${dde.vocationalFactors.age.category}\n\n`;
+        }
+
+        if (dde.medicallyDeterminableImpairments?.established?.length > 0) {
+          markdown += '**Medically Determinable Impairments:**\n';
+          dde.medicallyDeterminableImpairments.established.forEach(mdi => {
+            markdown += `- ${mdi}\n`;
+          });
+          markdown += '\n';
+        }
+      }
+
+      // Medical Chronology (Section F) - HTML Table for rich content
+      const entries = results.entries || [];
+      if (entries.length > 0) {
+        markdown += '## Medical Event Timeline\n\n';
+        markdown += `**Total Entries:** ${entries.length}\n\n`;
+
+        // Build HTML table directly (markdown tables can't handle multiline content)
+        markdown += '<table class="chronology-table">\n';
+        markdown += '<thead><tr><th>Date</th><th>Provider</th><th>Facility</th><th>Type</th><th>Occurrence/Treatment</th><th>Source</th></tr></thead>\n';
+        markdown += '<tbody>\n';
+
+        entries.forEach((entry) => {
+          const date = entry.date || 'N/A';
+          const provider = (entry.provider || 'Unknown').replace(/</g, '&lt;');
+          const facility = (entry.facility || 'N/A').replace(/</g, '&lt;');
+          const visitType = entry.visit_type ? entry.visit_type.replace(/_/g, ' ') : 'N/A';
+          // Format source citation: Ex. 8F@430 (exhibit + page within exhibit)
+          // exhibit_reference already contains the exhibit page (e.g., "8F@430")
+          // page_range is the PDF page which we don't need to display
+          const source = entry.exhibit_reference ? `Ex. ${entry.exhibit_reference}` : 'N/A';
+
+          // Build occurrence/treatment summary with HTML formatting
+          const occ = entry.occurrence_treatment || {};
+          let occSummary = buildOccurrenceSummary(occ, entry.visit_type);
+
+          markdown += `<tr><td>${date}</td><td>${provider}</td><td>${facility}</td><td>${visitType}</td><td>${occSummary}</td><td>${source}</td></tr>\n`;
+        });
+
+        markdown += '</tbody></table>\n\n';
+      } else {
+        markdown += '## Results\n\n';
+        markdown += `**Segments Processed:** ${results.segments || 0}\n\n`;
+        markdown += `**Chronology Entries:** ${results.chronology_entries || 0}\n\n`;
+
+        if (results.sections_found && !results.sections_found.includes('F') && !results.sections_found.includes('A')) {
+          markdown += '> **Note:** This document does not contain Section A (DDE) or Section F (Medical Records). ';
+          markdown += 'ChartVision extracts chronologies from these sections.\n\n';
+        }
+      }
+
+      displayChronology(markdown);
+    }
+
+    function applyChronologyStyling() {
+      // Highlight exhibit citations
+      const citationRegex = /\(Ex\.\s*\d+[A-Za-z]?[@,]\s*(?:pp?\.\s*)?\d+(?:-\d+)?\)/g;
+
+      const walker = document.createTreeWalker(
+        chronologyOutput,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+      );
+
+      const textNodes = [];
+      let node;
+      while (node = walker.nextNode()) {
+        if (citationRegex.test(node.textContent)) {
+          textNodes.push(node);
+        }
+        citationRegex.lastIndex = 0;
+      }
+
+      textNodes.forEach(textNode => {
+        const text = textNode.textContent;
+        const parts = text.split(citationRegex);
+        const matches = text.match(citationRegex) || [];
+
+        if (matches.length === 0) return;
+
+        const fragment = document.createDocumentFragment();
+        parts.forEach((part, i) => {
+          if (part) fragment.appendChild(document.createTextNode(part));
+          if (matches[i]) {
+            const span = document.createElement('span');
+            span.className = 'citation';
+            span.textContent = matches[i];
+            fragment.appendChild(span);
+          }
+        });
+
+        textNode.parentNode.replaceChild(fragment, textNode);
+      });
+    }
+
+    // Export buttons
+    copyBtn.addEventListener('click', () => {
+      const markdown = chronologyOutput.dataset.rawMarkdown || chronologyOutput.textContent;
+      navigator.clipboard.writeText(markdown);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+    });
+
+    downloadPdfBtn.addEventListener('click', async () => {
+      if (!currentJobId) {
+        alert('No job available for PDF download');
+        return;
+      }
+
+      downloadPdfBtn.textContent = 'Downloading...';
+      downloadPdfBtn.disabled = true;
+
+      try {
+        // Download pre-generated Gotenberg PDF
+        const response = await fetch(`${API_BASE}/api/v1/ere/pdf/${currentJobId}`, {
+          headers: { 'Authorization': `Bearer ${API_KEY}` },
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.detail || 'PDF download failed');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chronology_${currentJobId.substring(0, 8)}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+      } catch (error) {
+        alert('PDF download failed: ' + error.message);
+      } finally {
+        downloadPdfBtn.textContent = 'Download PDF';
+        downloadPdfBtn.disabled = false;
+      }
+    });
+
+    // New upload
+    newUploadBtn.addEventListener('click', () => {
+      currentJobId = null;
+      chronologyOutput.innerHTML = '';
+      fileInput.value = '';
+      goToStep(1);
+    });
+  </script>
+</body>
+</html>

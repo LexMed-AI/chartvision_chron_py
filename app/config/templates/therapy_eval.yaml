@@ -1,0 +1,622 @@
+# Therapy Evaluation Extraction Template
+# For: Physical Therapy, Occupational Therapy, Speech Therapy, FCE
+#
+# Version: 2.0.0
+#
+# This template captures detailed rehabilitation therapy records including
+# initial evaluations, progress notes, discharge summaries, and FCEs.
+# Key disability-relevant data: functional limitations, objective measurements,
+# work capacity, and prognosis.
+
+visit_type: "therapy_eval"
+description: "Rehabilitation therapy evaluations, progress notes, and FCE reports"
+
+# LLM configuration
+llm_config:
+  temperature: 0.1
+  max_tokens: 3500
+
+# User prompt specific to therapy evaluations
+user_prompt: |
+  Parse the following therapy evaluation/treatment records and extract all encounters.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH ENCOUNTER:**
+
+  1. BASIC INFORMATION:
+     - Date of service
+     - Therapist name and credentials (PT, DPT, OT, OTR/L, SLP, etc.)
+     - Facility name
+     - Type of therapy
+     - Visit type (Initial Eval, Progress Note, Re-eval, Discharge)
+
+  2. DIAGNOSES/REFERRAL REASON:
+     - Primary diagnosis
+     - Secondary diagnoses
+     - Referral source
+
+  3. SUBJECTIVE (Patient-reported):
+     - Pain level (0-10 scale)
+     - Functional complaints
+     - Activity limitations reported
+
+  4. OBJECTIVE MEASUREMENTS:
+     - Range of Motion (ROM) - specific joints and degrees
+     - Strength testing (MMT grades 0-5)
+     - Gait assessment
+     - Balance testing (Berg, Tinetti, etc.)
+     - Functional tests (6MWT, TUG, etc.)
+     - Special tests performed
+
+  5. FUNCTIONAL LIMITATIONS:
+     - ADL limitations
+     - Work-related limitations
+     - Mobility limitations
+
+  6. ASSESSMENT/CLINICAL IMPRESSION:
+     - Therapist's assessment
+     - Prognosis (good, fair, poor)
+     - Rehab potential
+
+  7. PLAN:
+     - Treatment frequency and duration
+     - Goals (short-term and long-term)
+     - Modalities/interventions used
+
+  **OUTPUT:** Return JSON array following the therapy_eval schema.
+
+# Fields specific to therapy evaluations
+fields:
+  therapy_type:
+    type: enum
+    required: true
+    label: "Therapy Type"
+    values:
+      - "Physical Therapy"
+      - "Occupational Therapy"
+      - "Speech Therapy"
+      - "Cognitive Therapy"
+      - "Vestibular Therapy"
+      - "Aquatic Therapy"
+      - "Hand Therapy"
+      - "Cardiac Rehab"
+      - "Pulmonary Rehab"
+    description: "Type of therapy"
+
+  visit_type_therapy:
+    type: enum
+    required: false
+    label: "Visit Type"
+    values:
+      - "Initial Evaluation"
+      - "Progress Note"
+      - "Re-evaluation"
+      - "Discharge Summary"
+      - "FCE"
+    description: "Type of therapy visit"
+
+  diagnoses:
+    type: array
+    items: string
+    required: true
+    label: "Diagnoses"
+    description: "Primary and secondary diagnoses"
+
+  # Subjective Section
+  pain_level:
+    type: object
+    required: false
+    label: "Pain Level"
+    fields:
+      current: string
+      worst: string
+      best: string
+      location: string
+    description: "Patient-reported pain levels (0-10 scale)"
+
+  subjective_complaints:
+    type: text
+    required: true
+    label: "Subjective"
+    description: "Patient-reported symptoms and functional limitations"
+
+  # Objective Measurements - ROM
+  range_of_motion:
+    type: array
+    items: object
+    required: false
+    label: "Range of Motion"
+    fields:
+      joint: string
+      motion: string
+      active: string
+      passive: string
+      normal: string
+      side: string
+    description: "ROM measurements by joint"
+    examples:
+      - joint: "Cervical Spine"
+        motion: "Flexion"
+        active: "25°"
+        passive: "30°"
+        normal: "45°"
+      - joint: "Lumbar Spine"
+        motion: "Extension"
+        active: "10°"
+        normal: "25°"
+      - joint: "Shoulder"
+        motion: "Abduction"
+        active: "90°"
+        normal: "180°"
+        side: "Right"
+
+  # Strength Testing
+  strength_testing:
+    type: array
+    items: object
+    required: false
+    label: "Strength (MMT)"
+    fields:
+      muscle_group: string
+      grade: string
+      side: string
+      notes: string
+    description: "Manual Muscle Testing grades (0-5 scale)"
+    examples:
+      - muscle_group: "Hip Flexors"
+        grade: "4/5"
+        side: "Bilateral"
+      - muscle_group: "Grip Strength"
+        grade: "15 lbs"
+        side: "Right"
+
+  # Gait Assessment
+  gait_assessment:
+    type: object
+    required: false
+    label: "Gait"
+    fields:
+      pattern: string
+      assistive_device: string
+      distance: string
+      weight_bearing_status: string
+      deviations: array
+    description: "Gait pattern and deviations"
+    examples:
+      pattern: "Antalgic"
+      assistive_device: "Standard cane"
+      distance: "50 feet with rest breaks"
+      deviations:
+        - "Decreased stance time on right"
+        - "Reduced heel strike"
+
+  # Balance Testing
+  balance_testing:
+    type: object
+    required: false
+    label: "Balance"
+    fields:
+      berg_score: string
+      tinetti_score: string
+      single_leg_stance: string
+      tandem_stance: string
+      romberg: string
+      fall_risk: string
+    description: "Balance assessment scores and observations"
+
+  # Functional Testing
+  functional_tests:
+    type: array
+    items: object
+    required: false
+    label: "Functional Tests"
+    fields:
+      test_name: string
+      result: string
+      interpretation: string
+    description: "Standardized functional assessments"
+    examples:
+      - test_name: "6 Minute Walk Test"
+        result: "280 meters"
+        interpretation: "Below normal for age"
+      - test_name: "Timed Up and Go (TUG)"
+        result: "18 seconds"
+        interpretation: "High fall risk (>12 sec)"
+      - test_name: "DASH Score"
+        result: "62/100"
+        interpretation: "Moderate disability"
+
+  # Special Tests
+  special_tests:
+    type: array
+    items: object
+    required: false
+    label: "Special Tests"
+    fields:
+      test_name: string
+      result: string
+      significance: string
+    description: "Orthopedic/neurological special tests"
+    examples:
+      - test_name: "Straight Leg Raise"
+        result: "Positive at 40° right"
+        significance: "Suggests lumbar radiculopathy"
+      - test_name: "Spurling's Test"
+        result: "Positive right"
+        significance: "Cervical radiculopathy"
+
+  # Functional Limitations
+  functional_limitations:
+    type: array
+    items: object
+    required: false
+    label: "Functional Limitations"
+    fields:
+      activity: string
+      limitation: string
+      assistance_needed: string
+    description: "Specific activity limitations identified"
+
+  adl_status:
+    type: object
+    required: false
+    label: "ADL Status"
+    fields:
+      dressing: string
+      bathing: string
+      grooming: string
+      toileting: string
+      transfers: string
+      ambulation: string
+      stairs: string
+    values: ["Independent", "Modified Independent", "Supervision", "Min Assist", "Mod Assist", "Max Assist", "Dependent"]
+    description: "Activities of daily living assessment"
+
+  work_capacity:
+    type: object
+    required: false
+    label: "Work Capacity"
+    fields:
+      current_status: string
+      lifting_capacity: string
+      standing_tolerance: string
+      sitting_tolerance: string
+      restrictions: array
+    description: "Work-related functional capacity"
+
+  # Assessment
+  assessment:
+    type: text
+    required: true
+    label: "Assessment"
+    description: "Therapist's clinical assessment"
+
+  prognosis:
+    type: enum
+    required: false
+    label: "Prognosis"
+    values:
+      - "Excellent"
+      - "Good"
+      - "Fair"
+      - "Guarded"
+      - "Poor"
+    description: "Expected outcome of therapy"
+
+  rehab_potential:
+    type: enum
+    required: false
+    label: "Rehab Potential"
+    values:
+      - "Excellent"
+      - "Good"
+      - "Fair"
+      - "Poor"
+    description: "Potential to benefit from continued therapy"
+
+  # Plan
+  treatment_plan:
+    type: object
+    required: false
+    label: "Treatment Plan"
+    fields:
+      frequency: string
+      duration: string
+      interventions: array
+    description: "Treatment frequency, duration, and modalities"
+
+  goals:
+    type: object
+    required: false
+    label: "Goals"
+    fields:
+      short_term: array
+      long_term: array
+    description: "Therapy goals"
+
+# Output labels for occurrence_treatment column
+output_labels:
+  - "Therapy Type"
+  - "Subjective"
+  - "Pain"
+  - "ROM"
+  - "Strength"
+  - "Gait"
+  - "Balance"
+  - "Functional Limits"
+  - "Assessment"
+  - "Prognosis"
+  - "Plan"
+
+# Formatting example
+output_example: |
+  Therapy Type: Physical Therapy (Initial Evaluation)
+  Subjective: B/L hand numbness, neck pain 7/10, cannot drive
+  ROM: Cervical flexion 25° (N: 45°), rotation 30° bilateral (N: 80°)
+  Strength: Grip 15 lbs bilateral, UE 4/5 throughout
+  Gait: Antalgic, uses cane, 50 ft with rest breaks
+  Balance: Berg 42/56, TUG 15 sec (fall risk)
+  Functional Limits: Cannot lift >5 lbs, no overhead reaching, unable to drive
+  ADLs: Min assist dressing, mod assist bathing
+  Assessment: Cervical radiculopathy with significant functional deficits
+  Prognosis: Fair - chronic condition with limited improvement expected
+  Plan: PT 2x/week x 8 weeks, manual therapy, therapeutic exercise
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      PHYSICAL THERAPY INITIAL EVALUATION
+      Date: 04/01/2021
+      Provider: Kyle J Stroup, PT, DPT
+      Facility: Mountain View Physical Therapy
+
+      REFERRAL: Dr. Martinez, Orthopedic Surgery
+      DIAGNOSIS: Cervical radiculopathy, cervicalgia
+
+      SUBJECTIVE:
+      Patient reports B/L hand numbness and pain, Rt>Lt, neck pain 7/10.
+      Extreme hypersensitivity in Rt hand starting 3 days ago.
+      Unable to drive due to neck pain and numbness.
+      Unable to perform ADLs independently - needs help dressing.
+      Prior Level of Function: Independent all ADLs, worked as office manager.
+
+      OBJECTIVE:
+      Posture: Forward head, rounded shoulders
+      ROM Cervical:
+        - Flexion: 25° (N: 45°)
+        - Extension: 15° (N: 45°)
+        - Rotation R: 30° (N: 80°)
+        - Rotation L: 35° (N: 80°)
+        - Sidebend R: 20° (N: 45°)
+        - Sidebend L: 25° (N: 45°)
+
+      Strength:
+        - Unable to assess MMT accurately due to pain
+        - Grip strength: 15 lbs bilateral (decreased from expected)
+
+      Special Tests:
+        - Spurling's: Positive right
+        - ULTT: Positive right
+        - Cervical Distraction: Relieves symptoms
+
+      Neurological: Decreased sensation C6-C7 dermatome right
+
+      Gait: Antalgic, guarded posture, RUE held in position of comfort
+
+      FUNCTIONAL LIMITATIONS:
+      - Cannot drive
+      - Unable to lift >5 lbs
+      - Cannot reach overhead
+      - Difficulty with fine motor tasks right hand
+      - Unable to perform ADLs independently
+
+      ASSESSMENT:
+      45 y/o female presents with cervicalgia, cervical radiculopathy with
+      significant functional limitations. Extreme hyperalgesia of cervical
+      spine and RUE limiting participation in therapy at this time.
+
+      PROGNOSIS: Poor for therapy until acute flare resolved.
+      REHAB POTENTIAL: Fair once acute phase controlled.
+
+      PLAN:
+      - Refer back to physician for pain management
+      - Hold active PT until cleared
+      - Home program: gentle cervical AROM as tolerated, ice
+      - Return when pain controlled for progression
+
+      GOALS:
+      STG (4 weeks): Pain 4/10, independent driving
+      LTG (8 weeks): Return to work modified duty, independent ADLs
+
+    output:
+      date: "04/01/2021"
+      provider: "Kyle J Stroup, PT, DPT"
+      facility: "Mountain View Physical Therapy"
+      exhibit_reference: "2F@455"
+      page_range: "455-460"
+      visit_type: "therapy_eval"
+      therapy_type: "Physical Therapy"
+      visit_type_therapy: "Initial Evaluation"
+      diagnoses:
+        - "Cervical radiculopathy"
+        - "Cervicalgia"
+      pain_level:
+        current: "7/10"
+        location: "Neck, bilateral hands"
+      subjective_complaints: "B/L hand numbness and pain, Rt>Lt. Extreme hypersensitivity in Rt hand. Unable to drive. Unable to perform ADLs independently."
+      range_of_motion:
+        - joint: "Cervical"
+          motion: "Flexion"
+          active: "25°"
+          normal: "45°"
+        - joint: "Cervical"
+          motion: "Extension"
+          active: "15°"
+          normal: "45°"
+        - joint: "Cervical"
+          motion: "Rotation"
+          active: "30°"
+          normal: "80°"
+          side: "Right"
+        - joint: "Cervical"
+          motion: "Rotation"
+          active: "35°"
+          normal: "80°"
+          side: "Left"
+      strength_testing:
+        - muscle_group: "Grip Strength"
+          grade: "15 lbs"
+          side: "Bilateral"
+          notes: "Decreased from expected"
+        - muscle_group: "Upper Extremity"
+          grade: "Unable to assess due to pain"
+      gait_assessment:
+        pattern: "Antalgic, guarded posture"
+        assistive_device: null
+        deviations:
+          - "RUE held in position of comfort"
+      special_tests:
+        - test_name: "Spurling's Test"
+          result: "Positive right"
+          significance: "Cervical radiculopathy"
+        - test_name: "ULTT"
+          result: "Positive right"
+          significance: "Neural tension"
+        - test_name: "Cervical Distraction"
+          result: "Relieves symptoms"
+          significance: "Foraminal compression"
+      functional_limitations:
+        - activity: "Driving"
+          limitation: "Unable"
+          assistance_needed: null
+        - activity: "Lifting"
+          limitation: "Cannot lift >5 lbs"
+          assistance_needed: null
+        - activity: "Overhead reaching"
+          limitation: "Unable"
+          assistance_needed: null
+        - activity: "Fine motor tasks"
+          limitation: "Difficulty right hand"
+          assistance_needed: null
+        - activity: "ADLs"
+          limitation: "Unable to perform independently"
+          assistance_needed: "Needs help dressing"
+      assessment: "45 y/o female with cervicalgia, cervical radiculopathy with significant functional limitations. Extreme hyperalgesia limiting participation in therapy."
+      prognosis: "Poor"
+      rehab_potential: "Fair"
+      treatment_plan:
+        frequency: "Hold until pain controlled"
+        duration: null
+        interventions:
+          - "Refer to physician for pain management"
+          - "Home program: gentle cervical AROM, ice"
+      goals:
+        short_term:
+          - "Pain 4/10 in 4 weeks"
+          - "Independent driving in 4 weeks"
+        long_term:
+          - "Return to work modified duty in 8 weeks"
+          - "Independent ADLs in 8 weeks"
+
+  - input: |
+      FUNCTIONAL CAPACITY EVALUATION (FCE)
+      Date: 08/15/2023
+      Evaluator: Jennifer Walsh, PT, DPT, OCS
+      Facility: WorkAbility Assessment Center
+
+      Patient: Robert Johnson  DOB: 03/22/1975
+      Diagnosis: Lumbar disc herniation L4-L5, post-laminectomy
+
+      TEST DURATION: 5 hours
+      EFFORT LEVEL: Full/Consistent (Coefficient of Variation <15%)
+
+      PHYSICAL DEMAND LEVEL ACHIEVED: SEDENTARY
+
+      LIFTING CAPACITY:
+      - Floor to Waist: 10 lbs occasional, 5 lbs frequent
+      - Waist to Shoulder: 10 lbs occasional, 5 lbs frequent
+      - Overhead: Not tested (contraindicated)
+      - Carrying: 10 lbs for 50 feet
+
+      POSITIONAL TOLERANCES:
+      - Standing: 30 minutes continuous, 2 hours total
+      - Walking: 15 minutes continuous, 1 hour total
+      - Sitting: 45 minutes continuous, 6 hours total with breaks
+      - Kneeling: 5 minutes
+      - Crouching: Not tolerated
+      - Climbing: 1 flight with rail, no ladders
+
+      CARDIOVASCULAR:
+      - 6 Minute Walk Test: 320 meters (below normal)
+      - HR response: Appropriate
+
+      GRIP/PINCH:
+      - Grip R: 85 lbs, L: 82 lbs (WNL)
+      - Pinch: WNL bilateral
+
+      VALIDITY INDICATORS:
+      - Waddell Signs: 1/5 (non-organic)
+      - Coefficient of Variation: 11% (consistent effort)
+      - Heart Rate Correlation: Appropriate
+
+      CONCLUSIONS:
+      Mr. Johnson demonstrated ability to perform at SEDENTARY physical
+      demand level. Significant limitations in positional tolerances
+      especially standing and walking. Lifting capacity limited to 10 lbs.
+      Valid and reliable effort throughout testing.
+
+      WORK RECOMMENDATIONS:
+      - Sedentary work only
+      - Sit/stand option required
+      - No repetitive bending or twisting
+      - No ladder climbing
+      - Frequent position changes every 30-45 minutes
+
+    output:
+      date: "08/15/2023"
+      provider: "Jennifer Walsh, PT, DPT, OCS"
+      facility: "WorkAbility Assessment Center"
+      exhibit_reference: "15F@1"
+      page_range: "1-12"
+      visit_type: "therapy_eval"
+      therapy_type: "Physical Therapy"
+      visit_type_therapy: "FCE"
+      diagnoses:
+        - "Lumbar disc herniation L4-L5"
+        - "Post-laminectomy"
+      subjective_complaints: null
+      functional_tests:
+        - test_name: "6 Minute Walk Test"
+          result: "320 meters"
+          interpretation: "Below normal"
+        - test_name: "Coefficient of Variation"
+          result: "11%"
+          interpretation: "Consistent effort (valid)"
+        - test_name: "Waddell Signs"
+          result: "1/5"
+          interpretation: "Non-organic (valid)"
+      strength_testing:
+        - muscle_group: "Grip"
+          grade: "85 lbs"
+          side: "Right"
+          notes: "WNL"
+        - muscle_group: "Grip"
+          grade: "82 lbs"
+          side: "Left"
+          notes: "WNL"
+      work_capacity:
+        current_status: "Sedentary physical demand level"
+        lifting_capacity: "10 lbs occasional, 5 lbs frequent"
+        standing_tolerance: "30 min continuous, 2 hrs total"
+        sitting_tolerance: "45 min continuous, 6 hrs total with breaks"
+        restrictions:
+          - "Sedentary work only"
+          - "Sit/stand option required"
+          - "No repetitive bending or twisting"
+          - "No ladder climbing"
+          - "Position changes every 30-45 minutes"
+      assessment: "Patient demonstrated ability to perform at SEDENTARY physical demand level with significant positional tolerance limitations. Valid and reliable effort throughout testing."
+      prognosis: null
+      rehab_potential: null

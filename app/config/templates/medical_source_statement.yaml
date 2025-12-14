@@ -1,0 +1,533 @@
+# Medical Source Statement (MSS) Extraction Template
+# For: Treating Physician RFC Questionnaires, Source Statements, Opinion Evidence
+#
+# Version: 1.0.0
+#
+# Medical Source Statements are opinion evidence from treating or examining physicians
+# that assess a claimant's functional limitations. These are critical for disability
+# determinations as they represent opinions from sources who have examined/treated
+# the claimant.
+
+visit_type: "medical_source_statement"
+description: "Treating/examining physician RFC questionnaires and functional assessments"
+
+# LLM configuration overrides
+llm_config:
+  temperature: 0.1  # Low temperature for structured extraction
+  max_tokens: 4000
+
+# User prompt for MSS extraction
+user_prompt: |
+  Parse the following Medical Source Statement (MSS) or RFC Questionnaire and extract
+  all functional limitations and opinions.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT THE FOLLOWING:**
+
+  1. SOURCE INFORMATION:
+     - Physician/provider name and credentials
+     - Specialty (orthopedic, neurologist, psychiatrist, etc.)
+     - Treating relationship (how long, how often seen)
+     - Date of opinion
+
+  2. DIAGNOSES:
+     - Primary diagnoses supporting limitations
+     - ICD-10 codes if provided
+     - Prognosis (duration of limitations)
+
+  3. PHYSICAL RFC LIMITATIONS (if applicable):
+     - Exertional level (sedentary, light, medium, heavy)
+     - Lifting/carrying limits (occasional vs frequent)
+     - Standing/walking limits (hours per day)
+     - Sitting limits (hours per day)
+     - Postural limitations (climbing, balancing, stooping, kneeling, crouching, crawling)
+     - Manipulative limitations (reaching, handling, fingering, feeling)
+     - Environmental restrictions (heights, machinery, temperature, noise)
+
+  4. MENTAL RFC LIMITATIONS (if applicable):
+     - Understanding/memory limitations
+     - Concentration/persistence/pace limitations
+     - Social interaction limitations
+     - Adaptation limitations
+
+  5. OTHER LIMITATIONS:
+     - Need for breaks/rest periods
+     - Absenteeism predictions (days per month)
+     - Need for position changes
+     - Need for assistive devices
+
+  6. SUPPORTING EVIDENCE:
+     - Clinical findings supporting each limitation
+     - Objective test results cited
+     - Treatment history cited
+
+  **OUTPUT:** Return JSON following the medical_source_statement schema.
+
+# Fields specific to MSS
+fields:
+  # Source Information
+  source_name:
+    type: string
+    required: true
+    label: "Source Name"
+    description: "Name and credentials of the medical source"
+
+  source_specialty:
+    type: string
+    required: true
+    label: "Specialty"
+    description: "Medical specialty of the source"
+
+  treating_relationship:
+    type: object
+    required: false
+    label: "Treating Relationship"
+    fields:
+      duration: string
+      frequency: string
+      last_seen: string
+    description: "Length and nature of treating relationship"
+
+  opinion_date:
+    type: string
+    required: true
+    label: "Opinion Date"
+    format: "MM/DD/YYYY"
+    description: "Date the opinion was rendered"
+
+  # Diagnoses
+  diagnoses:
+    type: array
+    items: object
+    required: true
+    label: "Diagnoses"
+    fields:
+      diagnosis: string
+      icd10: string
+      severity: string
+    description: "Diagnoses supporting the functional limitations"
+
+  prognosis:
+    type: object
+    required: false
+    label: "Prognosis"
+    fields:
+      duration: string
+      expected_improvement: string
+    description: "Expected duration and course of limitations"
+
+  # Physical RFC
+  exertional_level:
+    type: enum
+    required: false
+    label: "Exertional Level"
+    values:
+      - "Sedentary"
+      - "Light"
+      - "Medium"
+      - "Heavy"
+      - "Very Heavy"
+      - "Less than Sedentary"
+    description: "Overall exertional capacity"
+
+  lifting_carrying:
+    type: object
+    required: false
+    label: "Lifting/Carrying"
+    fields:
+      occasional_max: string
+      frequent_max: string
+      never_lift_over: string
+    description: "Lifting and carrying limitations"
+
+  standing_walking:
+    type: object
+    required: false
+    label: "Standing/Walking"
+    fields:
+      total_hours: string
+      continuous_minutes: string
+      requires_breaks: boolean
+      assistive_device: string
+    description: "Standing and walking limitations"
+
+  sitting:
+    type: object
+    required: false
+    label: "Sitting"
+    fields:
+      total_hours: string
+      continuous_minutes: string
+      requires_position_changes: boolean
+    description: "Sitting limitations"
+
+  postural_limitations:
+    type: object
+    required: false
+    label: "Postural Limitations"
+    fields:
+      climbing_stairs: string
+      climbing_ladders: string
+      balancing: string
+      stooping: string
+      kneeling: string
+      crouching: string
+      crawling: string
+    values: ["Never", "Occasionally", "Frequently", "Constantly"]
+    description: "Postural activity limitations"
+
+  manipulative_limitations:
+    type: object
+    required: false
+    label: "Manipulative Limitations"
+    fields:
+      reaching_overhead: string
+      reaching_all_directions: string
+      handling: string
+      fingering: string
+      feeling: string
+    values: ["Limited", "Unlimited"]
+    description: "Reaching, handling, and fine motor limitations"
+
+  environmental_restrictions:
+    type: array
+    items: string
+    required: false
+    label: "Environmental Restrictions"
+    description: "Environmental hazards to avoid"
+    examples:
+      - "Avoid heights"
+      - "Avoid moving machinery"
+      - "Avoid temperature extremes"
+      - "Avoid dust/fumes"
+      - "Avoid loud noise"
+
+  # Mental RFC
+  mental_limitations:
+    type: object
+    required: false
+    label: "Mental RFC Limitations"
+    fields:
+      understanding_memory:
+        type: object
+        fields:
+          understand_simple: string
+          understand_complex: string
+          remember_simple: string
+          remember_complex: string
+      concentration_persistence:
+        type: object
+        fields:
+          maintain_attention: string
+          work_pace: string
+          complete_workday: string
+      social_interaction:
+        type: object
+        fields:
+          interact_public: string
+          interact_coworkers: string
+          interact_supervisors: string
+          accept_criticism: string
+      adaptation:
+        type: object
+        fields:
+          respond_changes: string
+          set_goals: string
+          travel_unfamiliar: string
+    values: ["None", "Mild", "Moderate", "Marked", "Extreme"]
+    description: "Mental/cognitive functional limitations"
+
+  # Other Limitations
+  breaks_rest:
+    type: object
+    required: false
+    label: "Breaks/Rest Requirements"
+    fields:
+      unscheduled_breaks: boolean
+      frequency: string
+      duration: string
+    description: "Need for additional breaks beyond normal"
+
+  absenteeism:
+    type: object
+    required: false
+    label: "Predicted Absenteeism"
+    fields:
+      days_per_month: string
+      reason: string
+    description: "Expected absences due to condition"
+
+  # Supporting Evidence
+  clinical_findings:
+    type: array
+    items: string
+    required: false
+    label: "Supporting Clinical Findings"
+    description: "Objective findings supporting the limitations"
+
+  evidence_cited:
+    type: array
+    items: object
+    required: false
+    label: "Evidence Cited"
+    fields:
+      exhibit_reference: string
+      description: string
+    description: "Specific records cited to support opinions"
+
+# Output labels for occurrence_treatment column
+output_labels:
+  - "Source"
+  - "Specialty"
+  - "Exertional Level"
+  - "Lifting"
+  - "Standing/Walking"
+  - "Sitting"
+  - "Postural"
+  - "Mental"
+  - "Absenteeism"
+
+# Formatting example for chronology summary
+output_example: |
+  Source: Dr. Michael Chen, MD (Orthopedic Surgery)
+  Treating: 3 years, monthly visits
+  Exertional Level: Sedentary
+  Lifting: 10 lbs occasional, 5 lbs frequent
+  Standing/Walking: 2 hrs total, 15 min continuous
+  Sitting: 6 hrs with position changes q30 min
+  Postural: No climbing, occasional stooping/kneeling
+  Environmental: Avoid heights, machinery
+  Absenteeism: 3+ days/month due to pain flares
+  Supporting: MRI showing multilevel DDD, EMG positive for radiculopathy
+
+# Few-shot examples
+examples:
+  - input: |
+      PHYSICAL MEDICAL SOURCE STATEMENT
+      Date: 09/15/2023
+      Patient: Jane Smith  DOB: 05/12/1970
+
+      PHYSICIAN INFORMATION:
+      Name: Dr. Michael Chen, MD
+      Specialty: Orthopedic Surgery
+      Address: 123 Medical Center Dr
+      Treating since: September 2020 (3 years)
+      Frequency of visits: Monthly
+
+      DIAGNOSES:
+      1. Degenerative disc disease L4-L5, L5-S1 (M51.36)
+      2. Lumbar radiculopathy (M54.16)
+      3. Failed back surgery syndrome (M96.1)
+
+      PROGNOSIS: Poor. Condition is chronic and permanent. No expected improvement.
+
+      PHYSICAL LIMITATIONS:
+
+      Lifting/Carrying:
+      - Occasionally lift (up to 1/3 of day): 10 lbs
+      - Frequently lift (1/3 to 2/3 of day): Less than 5 lbs
+
+      Standing/Walking:
+      - Total in 8-hour day: 2 hours
+      - At one time without interruption: 15 minutes
+      - Requires cane for ambulation
+
+      Sitting:
+      - Total in 8-hour day: 6 hours
+      - Must change positions every 30 minutes
+
+      Postural Activities:
+      - Climbing stairs/ramps: Occasionally
+      - Climbing ladders/scaffolds: Never
+      - Balancing: Occasionally
+      - Stooping: Occasionally
+      - Kneeling: Never
+      - Crouching: Never
+      - Crawling: Never
+
+      Environmental Restrictions:
+      [X] Avoid heights
+      [X] Avoid moving machinery
+      [ ] Avoid temperature extremes
+      [ ] Avoid dust/fumes
+
+      ABSENTEEISM:
+      Due to pain flares, patient would likely be absent more than 3 days per month.
+
+      SUPPORTING CLINICAL FINDINGS:
+      - MRI 06/2023 showing multilevel disc degeneration with foraminal narrowing
+      - EMG 07/2023 positive for L5-S1 radiculopathy
+      - Positive straight leg raise bilateral
+      - Antalgic gait, reduced lumbar ROM
+
+      Signature: Michael Chen, MD  Date: 09/15/2023
+
+    output:
+      date: "09/15/2023"
+      provider: "Dr. Michael Chen, MD"
+      facility: "123 Medical Center Dr"
+      exhibit_reference: "8F@1"
+      page_range: "1-4"
+      visit_type: "medical_source_statement"
+      source_name: "Dr. Michael Chen, MD"
+      source_specialty: "Orthopedic Surgery"
+      treating_relationship:
+        duration: "3 years (since September 2020)"
+        frequency: "Monthly"
+        last_seen: null
+      opinion_date: "09/15/2023"
+      diagnoses:
+        - diagnosis: "Degenerative disc disease L4-L5, L5-S1"
+          icd10: "M51.36"
+          severity: "Severe"
+        - diagnosis: "Lumbar radiculopathy"
+          icd10: "M54.16"
+          severity: null
+        - diagnosis: "Failed back surgery syndrome"
+          icd10: "M96.1"
+          severity: null
+      prognosis:
+        duration: "Chronic and permanent"
+        expected_improvement: "None expected"
+      exertional_level: "Sedentary"
+      lifting_carrying:
+        occasional_max: "10 lbs"
+        frequent_max: "Less than 5 lbs"
+        never_lift_over: null
+      standing_walking:
+        total_hours: "2 hours"
+        continuous_minutes: "15 minutes"
+        requires_breaks: true
+        assistive_device: "Cane"
+      sitting:
+        total_hours: "6 hours"
+        continuous_minutes: "30 minutes"
+        requires_position_changes: true
+      postural_limitations:
+        climbing_stairs: "Occasionally"
+        climbing_ladders: "Never"
+        balancing: "Occasionally"
+        stooping: "Occasionally"
+        kneeling: "Never"
+        crouching: "Never"
+        crawling: "Never"
+      manipulative_limitations: null
+      environmental_restrictions:
+        - "Avoid heights"
+        - "Avoid moving machinery"
+      mental_limitations: null
+      breaks_rest:
+        unscheduled_breaks: true
+        frequency: "Every 30 minutes"
+        duration: "Position change required"
+      absenteeism:
+        days_per_month: "More than 3 days"
+        reason: "Pain flares"
+      clinical_findings:
+        - "MRI 06/2023 showing multilevel disc degeneration with foraminal narrowing"
+        - "EMG 07/2023 positive for L5-S1 radiculopathy"
+        - "Positive straight leg raise bilateral"
+        - "Antalgic gait, reduced lumbar ROM"
+      evidence_cited:
+        - exhibit_reference: "MRI 06/2023"
+          description: "Multilevel disc degeneration with foraminal narrowing"
+        - exhibit_reference: "EMG 07/2023"
+          description: "Positive for L5-S1 radiculopathy"
+
+  - input: |
+      MENTAL MEDICAL SOURCE STATEMENT
+      Date: 10/20/2023
+
+      Provider: Dr. Sarah Williams, PhD
+      Licensed Psychologist
+      Treating patient since: January 2022
+      Frequency: Weekly therapy sessions
+
+      Diagnoses:
+      1. Major Depressive Disorder, Recurrent, Severe (F33.2)
+      2. Generalized Anxiety Disorder (F41.1)
+      3. PTSD (F43.10)
+
+      MENTAL FUNCTIONAL LIMITATIONS:
+
+      Understanding and Memory:
+      - Understand/remember simple instructions: Mild limitation
+      - Understand/remember complex instructions: Marked limitation
+
+      Concentration and Persistence:
+      - Maintain attention for 2-hour segments: Marked limitation
+      - Maintain regular attendance: Marked limitation
+      - Complete normal workday without interruption: Marked limitation
+
+      Social Interaction:
+      - Interact with general public: Marked limitation
+      - Interact with coworkers: Moderate limitation
+      - Accept criticism from supervisors: Marked limitation
+
+      Adaptation:
+      - Respond to changes in work setting: Marked limitation
+      - Travel to unfamiliar places: Moderate limitation
+
+      Expected Absences: 4+ days per month due to depression/anxiety episodes
+
+      Signature: Sarah Williams, PhD  Date: 10/20/2023
+
+    output:
+      date: "10/20/2023"
+      provider: "Dr. Sarah Williams, PhD"
+      facility: null
+      exhibit_reference: "12F@1"
+      page_range: "1-3"
+      visit_type: "medical_source_statement"
+      source_name: "Dr. Sarah Williams, PhD"
+      source_specialty: "Psychology"
+      treating_relationship:
+        duration: "Since January 2022"
+        frequency: "Weekly therapy sessions"
+        last_seen: null
+      opinion_date: "10/20/2023"
+      diagnoses:
+        - diagnosis: "Major Depressive Disorder, Recurrent, Severe"
+          icd10: "F33.2"
+          severity: "Severe"
+        - diagnosis: "Generalized Anxiety Disorder"
+          icd10: "F41.1"
+          severity: null
+        - diagnosis: "PTSD"
+          icd10: "F43.10"
+          severity: null
+      prognosis: null
+      exertional_level: null
+      lifting_carrying: null
+      standing_walking: null
+      sitting: null
+      postural_limitations: null
+      manipulative_limitations: null
+      environmental_restrictions: null
+      mental_limitations:
+        understanding_memory:
+          understand_simple: "Mild"
+          understand_complex: "Marked"
+          remember_simple: "Mild"
+          remember_complex: "Marked"
+        concentration_persistence:
+          maintain_attention: "Marked"
+          work_pace: null
+          complete_workday: "Marked"
+        social_interaction:
+          interact_public: "Marked"
+          interact_coworkers: "Moderate"
+          interact_supervisors: "Marked"
+          accept_criticism: "Marked"
+        adaptation:
+          respond_changes: "Marked"
+          set_goals: null
+          travel_unfamiliar: "Moderate"
+      breaks_rest: null
+      absenteeism:
+        days_per_month: "4+ days"
+        reason: "Depression/anxiety episodes"
+      clinical_findings: null
+      evidence_cited: null

@@ -1,0 +1,431 @@
+"medicallyDeterminableImpairments": {
+  "established": [
+    {
+      "impairment": "",
+      "listingCategory": "",
+      "evidenceSource": [],
+      "onsetDate": "YYYY-MM-DD",
+      "severity": "severe|nonsevere"
+    }
+  ],
+  "nonMDI": [
+    {
+      "allegedCondition": "",
+      "reasonForNonMDI": "",
+      "neededEvidence": []
+    }
+  ]
+},
+
+"determinationHistory": {
+  "initial": {
+    "determinationDate": "YYYY-MM-DD",
+    "decision": "favorable|unfavorable",
+    "basis": "",
+    "AdultMC/PC": "",
+    "keyFindings": []
+  },
+  "reconsideration": {
+    "determinationDate": "YYYY-MM-DD",
+    "decision": "favorable|unfavorable",
+    "basis": "",
+    "AdultMC/PC": "",
+    "keyFindings": [],
+    "newEvidence": []
+  }
+},
+"developmentStatus": {
+      "medicalRecords": {
+        "complete": null,
+        "missingRecords": [],
+        "pendingRequests": []
+      },
+      "consultativeExams": {
+        "needed": null,
+        "type": [],
+        "status": ["scheduled", "completed", "needed"]
+      },
+      "medicalOpinions": {
+        "treating": [],
+        "consulting": [],
+        "reviewing": []
+      }
+    },
+"symptoms": {
+  "subjective": {
+    "reported": [],
+    "intensity": null,
+    "frequency": null,
+    "duration": null,
+    "location": null,
+    "quality": null,
+    "factors": {
+      "aggravating": [],
+      "alleviating": []
+    }
+  },
+  "credibility": {
+    "consistentWithMDI": null,
+    "consistentWithEvidence": null,
+    "explanation": null
+  }
+},
+
+"residualFunctionalCapacity": {
+  "exertional": {
+    "strengthLevel": ["sedentary", "light", "medium", "heavy", "very_heavy"],
+    "lifting": {
+      "occasional": null,
+      "frequent": null,
+      "constant": null
+    },
+    "carrying": {
+      "occasional": null,
+      "frequent": null,
+      "constant": null
+    },
+    "standing": {
+      "duration": null,
+      "restrictions": []
+    },
+    "walking": {
+      "duration": null,
+      "restrictions": []
+    },
+    "sitting": {
+      "duration": null,
+      "restrictions": []
+    }
+  },
+  "postural": {
+    "climbing": {
+      "ramps": null,
+      "stairs": null,
+      "ladders": null,
+      "scaffolds": null
+    },
+    "balancing": null,
+    "stooping": null,
+    "kneeling": null,
+    "crouching": null,
+    "crawling": null
+  },
+  "manipulative": {
+    "reaching": {
+      "overhead": null,
+      "other": null
+    },
+    "handling": null,
+    "fingering": null,
+    "feeling": null
+  },
+  "environmental": {
+    "temperatureExtremes": null,
+    "wetness": null,
+    "humidity": null,
+    "noise": null,
+    "vibration": null,
+    "hazards": null
+  }
+},
+
+ "psychiatricReviewTechnique": {
+"understandingAndMemory": {
+  "abilityToRememberLocations": "",
+  "abilityToUnderstandAndRememberInstructions": "",
+  "supportingEvidence": [],
+  "pageReferences": []
+},
+"sustainedConcentrationAndPersistence": {
+  "abilityToCarryOutInstructions": "",
+  "abilityToMaintainAttention": "",
+  "abilityToSustainRoutine": "",
+  "supportingEvidence": [],
+  "pageReferences": []
+},
+"socialInteraction": {
+  "abilityToInteractWithPublic": "",
+  "abilityToInteractWithCoworkers": "",
+  "abilityToRespondToSupervision": "",
+  "supportingEvidence": [],
+  "pageReferences": []
+},
+"adaptationToChange": {
+  "abilityToRespondToChanges": "",
+  "abilityToBeAwareOfHazards": "",
+  "abilityToTravelIndependently": "",
+  "abilityToSetGoals": "",
+  "supportingEvidence": [],
+  "pageReferences": []
+},
+"bRatings": {
+  "activities": {
+    "restriction": "none|mild|moderate|marked|extreme",
+    "supportingEvidence": [],
+    "pageReferences": []
+  },
+  "socialFunctioning": {},
+  "concentration": {},
+  "decompensation": {}
+}
+  }
+}
+
+ "vocationalFactors": {
+      "education": {
+        "formalEducation": null,
+        "additionalTraining": [],
+        "category": null
+      },
+      "workHistory": {
+        "relevantPeriod": null,
+        "skillLevel": null,
+        "transferability": null
+      },
+      "age": {
+        "chronological": null,
+        "category": null
+      },
+      "gridRule": {
+        "rule": null,
+        "framework": null,
+        "outcome": null
+      }
+    }
+  }
+} "medicalEvidence": {
+      "sources": [
+        {
+          "provider": null,
+          "specialty": null,
+          "treatmentPeriod": {
+            "start": null,
+            "end": null
+          },
+          "receivedDate": null,
+          "documentTypes": [],
+          "keyFindings": []
+        }
+      ],
+      "developmentStatus": {
+        "adequacy": ["adequate", "inadequate"],
+        "missingEvidence": [],
+        "dueDiligence": {
+          "attempts": [],
+          "outcomes": []
+        }
+      }
+    },
+"symptoms": {
+  "subjective": {
+    "reported": [],
+    "intensity": null,
+    "frequency": null,
+    "duration": null,
+    "location": null,
+    "quality": null,
+    "factors": {
+      "aggravating": [],
+      "alleviating": []
+    }
+  },
+  "credibility": {
+    "consistentWithMDI": null,
+    "consistentWithEvidence": null,
+    "explanation": null
+  }
+},
+
+"residualFunctionalCapacity": {
+  "exertional": {
+    "strengthLevel": ["sedentary", "light", "medium", "heavy", "very_heavy"],
+    "lifting": {
+      "occasional": null,
+      "frequent": null,
+      "constant": null
+    },
+    "carrying": {
+      "occasional": null,
+      "frequent": null,
+      "constant": null
+    },
+    "standing": {
+      "duration": null,
+      "restrictions": []
+    },
+    "walking": {
+      "duration": null,
+      "restrictions": []
+    },
+    "sitting": {
+      "duration": null,
+      "restrictions": []
+    }
+  },
+  "postural": {
+    "climbing": {
+      "ramps": null,
+      "stairs": null,
+      "ladders": null,
+      "scaffolds": null
+    },
+    "balancing": null,
+    "stooping": null,
+    "kneeling": null,
+    "crouching": null,
+    "crawling": null
+  },
+  "manipulative": {
+    "reaching": {
+      "overhead": null,
+      "other": null
+    },
+    "handling": null,
+    "fingering": null,
+    "feeling": null
+  },
+  "environmental": {
+    "temperatureExtremes": null,
+    "wetness": null,
+    "humidity": null,
+    "noise": null,
+    "vibration": null,
+    "hazards": null
+  }
+},
+
+ "psychiatricReviewTechnique": {
+"understandingAndMemory": {
+  "abilityToRememberLocations": "",
+  "abilityToUnderstandAndRememberInstructions": "",
+  "supportingEvidence": [],
+  "pageReferences": []
+},
+"sustainedConcentrationAndPersistence": {
+  "abilityToCarryOutInstructions": "",
+  "abilityToMaintainAttention": "",
+  "abilityToSustainRoutine": "",
+  "supportingEvidence": [],
+  "pageReferences": []
+},
+"socialInteraction": {
+  "abilityToInteractWithPublic": "",
+  "abilityToInteractWithCoworkers": "",
+  "abilityToRespondToSupervision": "",
+  "supportingEvidence": [],
+  "pageReferences": []
+},
+"adaptationToChange": {
+  "abilityToRespondToChanges": "",
+  "abilityToBeAwareOfHazards": "",
+  "abilityToTravelIndependently": "",
+  "abilityToSetGoals": "",
+  "supportingEvidence": [],
+  "pageReferences": []
+},
+"bRatings": {
+  "activities": {
+    "restriction": "none|mild|moderate|marked|extreme",
+    "supportingEvidence": [],
+    "pageReferences": []
+  },
+  "socialFunctioning": {},
+  "concentration": {},
+  "decompensation": {}
+}
+  }
+}
+
+ "vocationalFactors": {
+      "education": {
+        "formalEducation": null,
+        "additionalTraining": [],
+        "category": null
+      },
+      "workHistory": {
+        "relevantPeriod": null,
+        "skillLevel": null,
+        "transferability": null
+      },
+      "age": {
+        "chronological": null,
+        "category": null
+      },
+      "gridRule": {
+        "rule": null,
+        "framework": null,
+        "outcome": null
+      }
+    }
+  }
+} "medicalEvidence": {
+      "sources": [
+        {
+          "provider": null,
+          "specialty": null,
+          "treatmentPeriod": {
+            "start": null,
+            "end": null
+          },
+          "receivedDate": null,
+          "documentTypes": [],
+          "keyFindings": []
+        }
+      ],
+      "developmentStatus": {
+        "adequacy": ["adequate", "inadequate"],
+        "missingEvidence": [],
+        "dueDiligence": {
+          "attempts": [],
+          "outcomes": []
+        }
+      }
+    },
+ }
+}
+
+ "vocationalFactors": {
+      "education": {
+        "formalEducation": null,
+        "additionalTraining": [],
+        "category": null
+      },
+      "workHistory": {
+        "relevantPeriod": null,
+        "skillLevel": null,
+        "transferability": null
+      },
+      "age": {
+        "chronological": null,
+        "category": null
+      },
+      "gridRule": {
+        "rule": null,
+        "framework": null,
+        "outcome": null
+      }
+    }
+  }
+} "medicalEvidence": {
+      "sources": [
+        {
+          "provider": null,
+          "specialty": null,
+          "treatmentPeriod": {
+            "start": null,
+            "end": null
+          },
+          "receivedDate": null,
+          "documentTypes": [],
+          "keyFindings": []
+        }
+      ],
+      "developmentStatus": {
+        "adequacy": ["adequate", "inadequate"],
+        "missingEvidence": [],
+        "dueDiligence": {
+          "attempts": [],
+          "outcomes": []
+        }
+      }
+    },

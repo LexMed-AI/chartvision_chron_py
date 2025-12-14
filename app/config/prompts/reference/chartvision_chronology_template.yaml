@@ -1,0 +1,832 @@
+# ChartVision Medical Chronology Template
+# Schema Version: 1.0.0
+# Based on: SandefurChron.pdf analysis + ChartVision Chrons.md template
+# Purpose: Defines extraction schema for SSA disability medical chronology reports
+
+schema_version: "1.0.0"
+template_name: "ChartVision Medical Chronology"
+description: "Comprehensive medical chronology extraction for SSA disability cases"
+
+# =============================================================================
+# SECTION DEFINITIONS - Maps to ChartVision template sections 1-12
+# =============================================================================
+
+sections:
+  # ---------------------------------------------------------------------------
+  # SECTION 1: CLAIMANT IDENTIFICATION
+  # ---------------------------------------------------------------------------
+  claimant_identification:
+    section_number: 1
+    title: "Claimant Identification"
+    data_sources:
+      - section: "E"
+        forms: ["SSA-3368", "1E", "2E"]
+      - section: "A"
+        forms: ["DDE", "SSA-831"]
+    fields:
+      full_name:
+        type: string
+        required: true
+        extraction_hint: "First page of disability report"
+      date_of_birth:
+        type: date
+        format: "MM/DD/YYYY"
+        required: true
+      ssn:
+        type: string
+        required: false
+        privacy: protected
+        note: "Do not include full SSN - last 4 only if needed"
+      bnc_code:
+        type: string
+        required: false
+        extraction_hint: "Found in SSA-831 forms in Section A"
+      case_file_reference:
+        type: string
+        required: true
+      total_document_pages:
+        type: integer
+        required: true
+
+  # ---------------------------------------------------------------------------
+  # SECTION 2: ADMINISTRATIVE DATA & CRITICAL DATES
+  # ---------------------------------------------------------------------------
+  administrative_data:
+    section_number: 2
+    title: "Administrative Data & Critical Dates"
+    data_sources:
+      - section: "A"
+        forms: ["DDE", "SSA-831"]
+      - section: "B"
+        forms: ["HA-501", "HA-504", "HA-507"]
+      - section: "E"
+        forms: ["SSA-3368"]
+    fields:
+      claim_type:
+        type: enum
+        values: ["DIB", "SSI", "Concurrent"]
+        required: true
+        extraction_hint: "Latest dated DDE in Section A"
+      protective_filing_date:
+        type: date
+        format: "MM/DD/YYYY"
+        required: true
+        abbreviation: "PFD"
+      alleged_onset_date:
+        type: date
+        format: "MM/DD/YYYY"
+        required: true
+        abbreviation: "AOD"
+      date_last_insured:
+        type: date
+        format: "MM/DD/YYYY"
+        required: true
+        abbreviation: "DLI"
+      initial_denial_date:
+        type: date
+        format: "MM/DD/YYYY"
+        required: false
+      reconsideration_denial_date:
+        type: date
+        format: "MM/DD/YYYY"
+        required: false
+      alj_hearing_date:
+        type: date
+        format: "MM/DD/YYYY"
+        required: false
+    extraction_rules:
+      - "Use ONLY the most recent dated initial and reconsideration DDEs"
+      - "Use ONLY the latest dated certified earnings record in Section D"
+      - "Critical dates are always in the last dated DDE in Section A"
+
+  # ---------------------------------------------------------------------------
+  # SECTION 3: ALLEGED IMPAIRMENTS INVENTORY
+  # ---------------------------------------------------------------------------
+  alleged_impairments:
+    section_number: 3
+    title: "Alleged Impairments Inventory"
+    data_sources:
+      - section: "E"
+        forms: ["SSA-3368"]
+        pages: "3-5"
+    objective_only: true
+    instruction: "Extract claimant's own words from forms - do not interpret"
+    fields:
+      conditions:
+        type: array
+        items:
+          type: object
+          properties:
+            condition_name:
+              type: string
+              required: true
+              note: "Copy exact condition name as written by claimant"
+            source:
+              type: string
+              format: "Ex. #E@page"
+              required: true
+
+  # ---------------------------------------------------------------------------
+  # SECTION 4: MEDICALLY DETERMINABLE IMPAIRMENTS (MDIs)
+  # ---------------------------------------------------------------------------
+  medically_determinable_impairments:
+    section_number: 4
+    title: "Medically Determinable Impairments"
+    data_sources:
+      - section: "F"
+        description: "Medical Records"
+      - section: "A"
+        forms: ["DDE"]
+        description: "DDE Medical Analysis"
+    fields:
+      diagnoses:
+        type: array
+        items:
+          type: object
+          properties:
+            diagnosis:
+              type: string
+              required: true
+              note: "Use doctor's exact diagnostic language"
+            icd_code:
+              type: string
+              required: false
+              note: "Include only if specifically stated in records"
+            severity:
+              type: enum
+              values: ["Severe", "Non-Severe"]
+              required: false
+            first_documented:
+              type: date
+              format: "MM/DD/YYYY"
+              required: true
+            source:
+              type: string
+              format: "Ex. #F@page"
+              required: true
+
+  # ---------------------------------------------------------------------------
+  # SECTION 5: MEDICAL SOURCE OPINIONS
+  # ---------------------------------------------------------------------------
+  medical_source_opinions:
+    section_number: 5
+    title: "Medical Source Opinions"
+    data_sources:
+      - section: "A"
+        forms: ["DDE"]
+        description: "DDS opinions"
+      - section: "F"
+        description: "Medical opinions"
+      - section: "E"
+        forms: ["VA_RATING", "LTD_DETERMINATION", "WORKERS_COMP", "QUESTIONNAIRES"]
+        description: "VA/LTD ratings, questionnaires"
+    fields:
+      opinions:
+        type: array
+        items:
+          type: object
+          properties:
+            date:
+              type: date
+              format: "MM/DD/YYYY"
+              required: true
+            medical_source:
+              type: string
+              required: true
+              examples:
+                - "Dr. John Smith, MD"
+                - "DDS Medical Consultant - Initial Level"
+                - "DDS Medical Consultant - Reconsideration Level"
+                - "Veterans Affairs"
+            relationship:
+              type: enum
+              values: ["DDS", "Treating", "CE", "Non-exam", "VA", "LTD", "Workers Comp"]
+              required: true
+            opinion_type:
+              type: enum
+              values: ["RFC", "MSS", "CE Report", "VA Rating", "LTD Rating", "Workers Comp Rating", "Questionnaire"]
+              required: true
+            source:
+              type: string
+              format: "Ex. #A or #F@page"
+              required: true
+
+  # ---------------------------------------------------------------------------
+  # SECTION 6: SURGICAL HISTORY
+  # ---------------------------------------------------------------------------
+  surgical_history:
+    section_number: 6
+    title: "Surgical History Inventory"
+    data_sources:
+      - section: "F"
+        description: "Hospital Records, Operative Reports"
+    fields:
+      procedures:
+        type: array
+        items:
+          type: object
+          properties:
+            date:
+              type: date
+              format: "MM/DD/YYYY"
+              required: true
+            procedure:
+              type: string
+              required: true
+              note: "Use surgeon's exact procedure terminology"
+            facility_type:
+              type: enum
+              values: ["Hospital", "Outpatient", "ASC"]
+              required: true
+            source:
+              type: string
+              format: "Ex. #F@page"
+              required: true
+
+  # ---------------------------------------------------------------------------
+  # SECTION 7: DIAGNOSTIC TESTING SUMMARY
+  # ---------------------------------------------------------------------------
+  diagnostic_testing:
+    section_number: 7
+    title: "Diagnostic Testing Summary"
+    data_sources:
+      - section: "F"
+        description: "Lab Reports, Imaging Studies, Test Results"
+    categories:
+      - "Oncology Testing"
+      - "Cardiovascular Testing"
+      - "Imaging Studies"
+      - "Laboratory Studies"
+      - "Gastrointestinal Studies"
+      - "Neurological Testing"
+      - "Ultrasound"
+      - "Sleep Studies"
+    fields:
+      tests:
+        type: array
+        items:
+          type: object
+          properties:
+            date:
+              type: date
+              format: "MM/DD/YYYY"
+              required: true
+            test_name:
+              type: string
+              required: true
+              note: "Use exact test names from reports"
+            category:
+              type: string
+              required: false
+            results_summary:
+              type: string
+              required: true
+              note: "Succinct objective results only"
+            source:
+              type: string
+              format: "Ex. #F@page"
+              required: true
+
+  # ---------------------------------------------------------------------------
+  # SECTION 8: MEDICATION PROFILE
+  # ---------------------------------------------------------------------------
+  medication_profile:
+    section_number: 8
+    title: "Current Medication Profile"
+    data_sources:
+      - section: "F"
+        description: "Prescription Lists, Office Notes"
+      - section: "E"
+        description: "Medication Lists"
+    fields:
+      medications:
+        type: array
+        items:
+          type: object
+          properties:
+            medication:
+              type: string
+              required: true
+              note: "Generic name with brand in parentheses"
+            dosage:
+              type: string
+              required: false
+            frequency:
+              type: string
+              required: false
+            indication:
+              type: string
+              required: false
+              note: "Condition treated, if stated"
+            source:
+              type: string
+              format: "Ex. #F@page"
+              required: true
+
+  # ---------------------------------------------------------------------------
+  # SECTION 9: OCCUPATIONAL HISTORY
+  # ---------------------------------------------------------------------------
+  occupational_history:
+    section_number: 9
+    title: "Occupational History Profile"
+    data_sources:
+      - section: "E"
+        forms: ["SSA-3369", "SSA-3368"]
+      - section: "A"
+        forms: ["DDE"]
+    fields:
+      jobs:
+        type: array
+        items:
+          type: object
+          properties:
+            position_title:
+              type: string
+              required: true
+              note: "Use claimant's exact job titles"
+            employment_period:
+              type: string
+              format: "MM/YYYY - MM/YYYY"
+              required: true
+            exertional_level:
+              type: enum
+              values: ["Sedentary", "Light", "Medium", "Heavy", "Very Heavy"]
+              required: false
+            source:
+              type: string
+              format: "Ex. #E@page"
+              required: true
+    extraction_rules:
+      - "Include only jobs within 5 years of onset of disability"
+      - "Use SSA-3369 Work History Report as primary source"
+
+  # ---------------------------------------------------------------------------
+  # SECTION 10: FUNCTIONAL CAPACITY INDICATORS
+  # ---------------------------------------------------------------------------
+  functional_capacity:
+    section_number: 10
+    title: "Functional Capacity Indicators"
+    claimant_statements_only: true
+    warning: "NOT PART OF MEDICAL CHRONOLOGY - EXTRACT FROM CLAIMANT FORMS ONLY"
+    data_sources:
+      - section: "E"
+        forms: ["SSA-3373", "SSA-3370"]
+    subsections:
+      adult_function_report:
+        form: "SSA-3373"
+        domains:
+          - "Activities of Daily Living"
+          - "Social Functioning"
+          - "Concentration, Persistence, Pace"
+          - "Adaptation"
+        fields:
+          limitations:
+            type: array
+            items:
+              type: object
+              properties:
+                activity_domain:
+                  type: string
+                  required: true
+                reported_limitation:
+                  type: string
+                  required: true
+                  note: "Quote claimant's exact words"
+                specific_examples:
+                  type: string
+                  required: false
+                source:
+                  type: string
+                  format: "Ex. #E@page"
+                  required: true
+      pain_report:
+        form: "SSA-3370"
+        fields:
+          pain_entries:
+            type: array
+            items:
+              type: object
+              properties:
+                pain_location:
+                  type: string
+                  required: true
+                description:
+                  type: string
+                  required: true
+                  note: "Quote claimant's description"
+                frequency_triggers:
+                  type: string
+                  required: false
+                source:
+                  type: string
+                  format: "Ex. #E@page"
+                  required: true
+
+  # ---------------------------------------------------------------------------
+  # SECTION 11: MISSING EVIDENCE
+  # ---------------------------------------------------------------------------
+  missing_evidence:
+    section_number: 11
+    title: "Missing Medical Evidence"
+    fields:
+      gaps:
+        type: array
+        items:
+          type: object
+          properties:
+            gap_description:
+              type: string
+              required: true
+            time_period:
+              type: string
+              required: false
+            provider_type:
+              type: string
+              required: false
+
+  # ---------------------------------------------------------------------------
+  # SECTION 12: COMPREHENSIVE MEDICAL EVIDENCE TABLE (CHRONOLOGY)
+  # ---------------------------------------------------------------------------
+  comprehensive_chronology:
+    section_number: 12
+    title: "Comprehensive Patient History Medical Evidence Table"
+    data_sources:
+      - section: "A"
+        forms: ["DDE"]
+        description: "DDS Medical Opinions"
+      - section: "F"
+        description: "All Medical Records"
+      - section: "E"
+        forms: ["VA_RATING", "LTD_DETERMINATION", "QUESTIONNAIRES"]
+        description: "VA/LTD Ratings, Questionnaires"
+    columns:
+      - name: "date"
+        header: "Date"
+        type: date
+        format: "MM/DD/YYYY"
+        required: true
+        note: "Sort chronologically (earliest first)"
+      - name: "provider_specialty"
+        header: "Provider/Specialty"
+        type: string
+        required: true
+        format_examples:
+          - "Dr. John Smith, MD (Cardiology)"
+          - "DDS Medical Consultant - Initial Level"
+          - "DDS Medical Consultant - Reconsideration Level"
+      - name: "facility"
+        header: "Facility"
+        type: string
+        required: true
+      - name: "occurrence_treatment"
+        header: "Occurrence/Treatment"
+        type: string
+        required: true
+        content_includes:
+          - "Subjective complaints"
+          - "Objective findings"
+          - "Vital signs, test results, physical exam findings"
+          - "Treatment plans, medications prescribed"
+          - "Procedures performed"
+      - name: "source"
+        header: "Source"
+        type: string
+        format: "Ex. #F@page or Ex. #F@page-page"
+        required: true
+
+# =============================================================================
+# SECTION E DOCUMENT TYPES - Complete inventory with medical relevance
+# =============================================================================
+
+section_e_document_types:
+  # SSA DISABILITY FORMS (Primary)
+  ssa_forms:
+    SSA-3368:
+      name: "Disability Report - Adult"
+      status: "implemented"
+      parser: "ssa3368_parser"
+      medical_content:
+        - "Alleged conditions (claimant's words)"
+        - "Medical sources (up to 25 providers)"
+        - "Medications"
+        - "Work history rationale"
+      maps_to_sections: [2, 3, 5, 8, 9]
+
+    SSA-3369:
+      name: "Work History Report"
+      status: "implemented"
+      parser: "ssa3369_parser"
+      medical_content:
+        - "Physical demands of past work"
+        - "Exertional levels"
+      maps_to_sections: [9]
+
+    SSA-3370:
+      name: "Pain Questionnaire"
+      status: "not_implemented"
+      priority: "high"
+      medical_content:
+        - "Pain location(s)"
+        - "Pain intensity description"
+        - "Frequency and triggers"
+        - "Relieving factors"
+        - "Impact on daily activities"
+      maps_to_sections: [5, 10]
+
+    SSA-3373:
+      name: "Adult Function Report"
+      status: "implemented"
+      parser: "ssa3373_parser"
+      medical_content:
+        - "Activities of daily living"
+        - "Functional limitations"
+        - "Pain impact"
+      maps_to_sections: [10]
+
+    SSA-3441:
+      name: "Disability Report - Appeals"
+      status: "not_implemented"
+      priority: "medium"
+      medical_content:
+        - "Changes in conditions since last decision"
+        - "New medical sources"
+        - "New medications"
+        - "Changes in daily activities"
+        - "Recent hospitalizations"
+      maps_to_sections: [3, 4, 5, 8]
+
+  # CONDITION-SPECIFIC QUESTIONNAIRES
+  questionnaires:
+    headache_questionnaire:
+      name: "Headache Diary/Questionnaire"
+      status: "not_implemented"
+      priority: "high"
+      form_number: null  # Non-standardized
+      medical_content:
+        - "Headache frequency"
+        - "Triggers"
+        - "Severity scale"
+        - "Duration"
+        - "Medication usage"
+        - "Work/activity impact"
+        - "Associated symptoms (vision, nausea, sensitivity)"
+      maps_to_sections: [5, 10, 12]
+      extraction_fields:
+        - field: "frequency"
+          type: string
+          examples: ["3-4 times per week", "daily", "15+ days per month"]
+        - field: "average_duration"
+          type: string
+          examples: ["4-6 hours", "all day", "2-3 days"]
+        - field: "severity"
+          type: string
+          examples: ["8/10", "severe", "debilitating"]
+        - field: "triggers"
+          type: array
+          examples: ["stress", "bright lights", "weather changes", "menstrual cycle"]
+        - field: "relief_measures"
+          type: array
+          examples: ["dark room", "medication", "ice pack", "sleep"]
+        - field: "work_impact"
+          type: string
+          examples: ["miss 2-3 days/month", "cannot concentrate", "must leave work"]
+
+    seizure_questionnaire:
+      name: "Seizure Diary/Questionnaire"
+      status: "not_implemented"
+      priority: "high"
+      form_number: null  # Non-standardized
+      medical_content:
+        - "Seizure frequency"
+        - "Seizure type (generalized, focal, etc.)"
+        - "Duration"
+        - "Triggers"
+        - "Warning signs (aura)"
+        - "Post-ictal symptoms"
+        - "Medication compliance"
+        - "Driving restrictions"
+        - "Work impact"
+      maps_to_sections: [5, 10, 12]
+      extraction_fields:
+        - field: "frequency"
+          type: string
+          examples: ["2 per month", "weekly", "breakthrough seizures"]
+        - field: "seizure_type"
+          type: enum
+          values: ["Generalized Tonic-Clonic", "Absence", "Focal Aware", "Focal Impaired Awareness", "Unknown"]
+        - field: "average_duration"
+          type: string
+          examples: ["1-2 minutes", "30 seconds", "5+ minutes (status epilepticus)"]
+        - field: "post_ictal_period"
+          type: string
+          examples: ["confused for 30 minutes", "sleeps for hours", "headache"]
+        - field: "last_seizure_date"
+          type: date
+          format: "MM/DD/YYYY"
+        - field: "driving_status"
+          type: enum
+          values: ["Cannot drive", "Restricted", "Cleared to drive"]
+
+    fibromyalgia_questionnaire:
+      name: "Fibromyalgia/Chronic Pain Questionnaire"
+      status: "not_implemented"
+      priority: "medium"
+      form_number: null  # Non-standardized
+      medical_content:
+        - "Tender point locations"
+        - "Pain patterns"
+        - "Sleep disturbance"
+        - "Fatigue severity"
+        - "Cognitive symptoms (fibro fog)"
+        - "Triggers"
+      maps_to_sections: [5, 10, 12]
+
+  # EXTERNAL DISABILITY DETERMINATIONS
+  external_determinations:
+    va_disability_rating:
+      name: "VA Disability Rating"
+      status: "not_implemented"
+      priority: "high"
+      form_numbers: ["VA Form 21-0960", "Rating Decision Letter"]
+      medical_content:
+        - "Overall disability percentage"
+        - "Condition-specific ratings"
+        - "Service-connected conditions"
+        - "Effective dates"
+        - "Functional limitations per VA standards"
+      maps_to_sections: [5, 12]
+      extraction_fields:
+        - field: "overall_rating"
+          type: string
+          examples: ["70%", "100% (TDIU)", "100% P&T"]
+        - field: "conditions_rated"
+          type: array
+          items:
+            type: object
+            properties:
+              condition: { type: string }
+              rating_percentage: { type: integer }
+              effective_date: { type: date }
+              service_connected: { type: boolean }
+        - field: "individual_unemployability"
+          type: boolean
+          note: "TDIU status"
+
+    ltd_determination:
+      name: "Long-Term Disability Determination"
+      status: "not_implemented"
+      priority: "medium"
+      form_numbers: null  # Insurer-specific
+      medical_content:
+        - "Disability status (approved/denied)"
+        - "Insurance company's medical assessment"
+        - "RFC determination per policy"
+        - "Conditions found disabling"
+        - "Benefit effective dates"
+        - "Own occupation vs any occupation period"
+      maps_to_sections: [5, 12]
+      extraction_fields:
+        - field: "status"
+          type: enum
+          values: ["Approved", "Denied", "Under Review", "Terminated"]
+        - field: "effective_date"
+          type: date
+        - field: "disabling_conditions"
+          type: array
+        - field: "occupation_period"
+          type: enum
+          values: ["Own Occupation", "Any Occupation"]
+
+    workers_comp_determination:
+      name: "Workers' Compensation Award/Determination"
+      status: "not_implemented"
+      priority: "medium"
+      form_numbers: null  # State-specific
+      medical_content:
+        - "Medical causation finding"
+        - "Body parts injured"
+        - "Scheduled award amount"
+        - "Permanent Partial Disability (PPD) rating"
+        - "Work restrictions"
+        - "Maximum Medical Improvement (MMI) date"
+      maps_to_sections: [5, 12]
+      extraction_fields:
+        - field: "injury_date"
+          type: date
+        - field: "body_parts"
+          type: array
+        - field: "ppd_rating"
+          type: string
+          examples: ["15% to the lumbar spine", "25% loss of use of left arm"]
+        - field: "mmi_date"
+          type: date
+        - field: "work_restrictions"
+          type: array
+          examples: ["No lifting over 10 lbs", "No prolonged standing", "Sedentary only"]
+
+# =============================================================================
+# CITATION FORMAT RULES
+# =============================================================================
+
+citation_format:
+  pattern: "Ex. {section_letter}{exhibit_number}@{page_or_range}"
+  examples:
+    single_page: "Ex. 15F@45"
+    page_range: "Ex. 15F@45-47"
+    administrative: "Ex. 2A@1-3"
+    claimant_form: "Ex. 3E@4"
+  sections:
+    A: "Administrative documents (DDEs, determinations)"
+    B: "Hearing-level documents"
+    C: "Correspondence"
+    D: "Work activity and earnings records"
+    E: "Claimant forms"
+    F: "Medical evidence"
+
+# =============================================================================
+# DDS CHRONOLOGY ENTRY FORMAT
+# =============================================================================
+
+dds_entry_format:
+  initial_level:
+    provider: "DDS Medical Consultant - Initial Level"
+    facility: "State Disability Determination Services"
+    occurrence_treatment_sections:
+      - "SEVERE IMPAIRMENTS: [List all]"
+      - "NON-SEVERE IMPAIRMENTS: [List all]"
+      - "LISTINGS CONSIDERED: [List numbers and findings]"
+      - "RFC ASSESSMENT:"
+      - "  - Exertional Level: [Level]"
+      - "  - Lifting/Carrying: [Limits]"
+      - "  - Standing/Walking: [Hours]"
+      - "  - Sitting: [Hours]"
+      - "  - Postural: [Key restrictions]"
+      - "  - Environmental: [Key restrictions]"
+      - "  - Mental RFC: [Key limitations if applicable]"
+
+  reconsideration_level:
+    provider: "DDS Medical Consultant - Reconsideration Level"
+    facility: "State Disability Determination Services"
+    occurrence_treatment_sections:
+      - "SEVERE IMPAIRMENTS: [List all - note if changed]"
+      - "NON-SEVERE IMPAIRMENTS: [List all - note if changed]"
+      - "LISTINGS CONSIDERED: [List numbers and findings]"
+      - "RFC ASSESSMENT:"
+      - "  - [All fields with 'note if changed']"
+      - "CHANGES FROM INITIAL: [Brief summary of what changed]"
+
+# =============================================================================
+# EXTRACTION METADATA
+# =============================================================================
+
+extraction_metadata:
+  confidence_scoring:
+    range: [0.0, 1.0]
+    thresholds:
+      high: 0.85
+      medium: 0.70
+      low: 0.50
+  data_completeness:
+    required_sections: [1, 2, 4, 12]
+    optional_sections: [3, 5, 6, 7, 8, 9, 10, 11]
+  quality_control_checklist:
+    - "Every row has complete citation"
+    - "Both subjective and objective findings included (for medical records)"
+    - "DDS entries include all required sections"
+    - "Dates in chronological order"
+    - "Provider names spelled correctly"
+    - "No ALJ decision content extracted"
+
+# =============================================================================
+# PROHIBITED CONTENT
+# =============================================================================
+
+prohibited_content:
+  - type: "ALJ Decisions"
+    reason: "Legal conclusions - do not extract or summarize"
+  - type: "Legal Analysis"
+    reason: "Template is for objective data extraction only"
+  - type: "Interpretation"
+    reason: "Do not include analysis unless directly quoted from ERE sources"
+
+# =============================================================================
+# OUTPUT STYLING (for HTML/PDF generation)
+# =============================================================================
+
+output_styling:
+  colors:
+    header_blue: "#1a3a5c"
+    row_alternate: "#f8f9fa"
+    border_gray: "#dee2e6"
+    text_dark: "#212529"
+  fonts:
+    body: "'Segoe UI', Arial, sans-serif"
+    monospace: "'Consolas', 'Monaco', monospace"
+  sizes:
+    body_font: "11pt"
+    header_font: "14pt"
+    table_font: "10pt"
+  print:
+    page_margin: "0.75in"
+    header_left: "Medical Chronology"
+    footer_center: "Page {page} of {pages}"

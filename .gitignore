@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+venv/
+.venv/
+
+# Results (may contain PII)
+results/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Environment
+.env
+*.log

@@ -1,0 +1,174 @@
+# Surgical Report Extraction Template
+# For: Operative Reports, Procedure Notes, Surgical Summaries
+#
+# Version: 1.0.0
+
+visit_type: "surgical_report"
+description: "Operative reports and surgical procedure documentation"
+
+# User prompt specific to surgical reports
+user_prompt: |
+  Parse the following operative/surgical reports and extract all procedures.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH PROCEDURE:**
+  - Date of surgery
+  - Surgeon name and credentials
+  - Facility name
+  - Procedure name(s)
+  - Pre-operative diagnosis
+  - Post-operative diagnosis
+  - Operative findings
+  - Anesthesia type (if noted)
+  - Complications (if any)
+  - Estimated blood loss (if noted)
+
+  **OUTPUT:** Return JSON array following the surgical_report schema.
+
+# Fields specific to surgical reports
+fields:
+  procedure_name:
+    type: string
+    required: true
+    label: "Procedure"
+    description: "Name of surgical procedure performed"
+
+  preoperative_diagnosis:
+    type: string
+    required: true
+    label: "Pre-op Dx"
+    description: "Diagnosis prior to surgery"
+
+  postoperative_diagnosis:
+    type: string
+    required: true
+    label: "Post-op Dx"
+    description: "Diagnosis after surgery (may differ from pre-op)"
+
+  operative_findings:
+    type: text
+    required: false
+    label: "Findings"
+    description: "Intraoperative findings"
+
+  surgeon:
+    type: string
+    required: true
+    label: "Surgeon"
+    description: "Operating surgeon name with credentials"
+
+  assistant_surgeon:
+    type: string
+    required: false
+    label: "Assistant"
+    description: "Assistant surgeon if applicable"
+
+  anesthesia:
+    type: string
+    required: false
+    label: "Anesthesia"
+    description: "Type of anesthesia (General, Spinal, Local, etc.)"
+
+  complications:
+    type: text
+    required: false
+    label: "Complications"
+    description: "Any intraoperative complications"
+
+  estimated_blood_loss:
+    type: string
+    required: false
+    label: "EBL"
+    description: "Estimated blood loss"
+
+# Output labels for occurrence_treatment column
+output_labels: ["Procedure", "Pre-op Dx", "Post-op Dx", "Findings", "Surgeon"]
+
+# Formatting example
+output_example: |
+  Procedure: Right total knee arthroplasty
+  Pre-op Dx: Severe DJD right knee
+  Post-op Dx: Same; OCD lesion noted
+  Findings: Grade IV chondromalacia medial and lateral compartments
+  Surgeon: Paul Edwards, MD
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      OPERATIVE REPORT
+      Date of Surgery: 01/27/2022
+      Surgeon: Paul Edwards, MD
+      Assistant: Jennifer Walsh, PA-C
+      Facility: Orthopedic Surgery Center
+      Anesthesia: General
+
+      PREOPERATIVE DIAGNOSIS: Severe degenerative joint disease, right knee
+
+      POSTOPERATIVE DIAGNOSIS: Same, with osteochondral defect noted
+
+      PROCEDURE PERFORMED: Right total knee arthroplasty
+
+      OPERATIVE FINDINGS: Upon arthrotomy, Grade IV chondromalacia was noted
+      in both medial and lateral compartments. Large osteochondral defect
+      measuring 2cm noted on medial femoral condyle. Significant osteophyte
+      formation throughout.
+
+      ESTIMATED BLOOD LOSS: 150cc
+      COMPLICATIONS: None
+
+      DISPOSITION: Patient tolerated procedure well, transferred to PACU
+      in stable condition.
+    output:
+      date: "01/27/2022"
+      provider: "Paul Edwards, MD"
+      facility: "Orthopedic Surgery Center"
+      exhibit_reference: "2F@621"
+      page_range: "621-627"
+      visit_type: "surgical_report"
+      procedure_name: "Right total knee arthroplasty"
+      preoperative_diagnosis: "Severe degenerative joint disease, right knee"
+      postoperative_diagnosis: "Severe degenerative joint disease, right knee, with osteochondral defect"
+      operative_findings: "Grade IV chondromalacia in both medial and lateral compartments. Large osteochondral defect measuring 2cm on medial femoral condyle. Significant osteophyte formation throughout."
+      surgeon: "Paul Edwards, MD"
+      assistant_surgeon: "Jennifer Walsh, PA-C"
+      anesthesia: "General"
+      complications: "None"
+      estimated_blood_loss: "150cc"
+
+  - input: |
+      OPERATIVE NOTE
+      Date: 09/14/2021
+      Surgeon: David Chen, MD
+      Facility: Regional Medical Center
+
+      PROCEDURE: L4-L5, L5-S1 posterior lumbar interbody fusion with
+      instrumentation
+
+      PREOP DX: Degenerative disc disease L4-L5, L5-S1 with spinal stenosis
+
+      POSTOP DX: Same
+
+      FINDINGS: Significant disc degeneration at both levels. Hypertrophied
+      ligamentum flavum causing central stenosis. Nerve roots appeared
+      compressed but healthy after decompression.
+
+      ANESTHESIA: General endotracheal
+      EBL: 400cc
+      COMPLICATIONS: None. No dural tear. No nerve injury.
+    output:
+      date: "09/14/2021"
+      provider: "David Chen, MD"
+      facility: "Regional Medical Center"
+      exhibit_reference: "12F@89"
+      page_range: "89-94"
+      visit_type: "surgical_report"
+      procedure_name: "L4-L5, L5-S1 posterior lumbar interbody fusion with instrumentation"
+      preoperative_diagnosis: "Degenerative disc disease L4-L5, L5-S1 with spinal stenosis"
+      postoperative_diagnosis: "Degenerative disc disease L4-L5, L5-S1 with spinal stenosis"
+      operative_findings: "Significant disc degeneration at both levels. Hypertrophied ligamentum flavum causing central stenosis. Nerve roots appeared compressed but healthy after decompression."
+      surgeon: "David Chen, MD"
+      anesthesia: "General endotracheal"
+      complications: "None. No dural tear. No nerve injury."
+      estimated_blood_loss: "400cc"

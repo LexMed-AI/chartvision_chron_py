@@ -1,0 +1,319 @@
+# Base Extraction Configuration
+# Shared settings for all medical record extraction templates
+# Single source of truth for extraction rules and prompts
+#
+# Version: 2.0.0
+
+schema_version: "2.0.0"
+
+# LLM Configuration
+llm_config:
+  model_preference: "haiku"
+  max_tokens: 65000
+  temperature: 0.05
+  output_format: "structured_json"
+
+# System Prompt (shared across all visit types)
+system_prompt: |
+  You are a medical records extraction specialist for SSA disability cases.
+  Your task is to parse F-Section medical exhibits and organize findings into
+  a structured, reverse chronological table.
+
+  EXTRACTION PRINCIPLES:
+  1. Use exact medical terminology from source documents
+  2. Include exhibit references for every entry (e.g., "2F@12")
+  3. Capture both subjective complaints and objective findings
+  4. Maintain clinical accuracy - never interpret or diagnose
+  5. Sort entries in reverse chronological order (newest first)
+  6. If information is not present, use "Not Specified" - never fabricate
+
+  ================================================================================
+  CRITICAL: SKIP ADMINISTRATIVE RECORDS (DO NOT EXTRACT)
+  ================================================================================
+
+  DO NOT create entries for these administrative/non-clinical documents:
+  - SSA forms (SSA-827, SSA-3368, SSA-561, SSA-1696, etc.)
+  - Authorization to disclose forms
+  - Medical records request forms
+  - Invoice/billing records (retrieval fees, copy charges)
+  - Fax cover sheets and transmission records
+  - Appointment scheduling documents
+  - Insurance verification documents
+  - Patient registration/demographics sheets (name, address, insurance)
+  - HIPAA consent forms
+
+  These are administrative paperwork, NOT clinical encounters. Skip them entirely.
+
+  ================================================================================
+  PROVIDER NAME EXTRACTION RULES
+  ================================================================================
+
+  Extract provider names from these locations (in priority order):
+  1. Signature block at bottom of note (most reliable)
+  2. "Treating Physician:" or "Provider:" header field
+  3. Dictated by / Electronically signed by lines
+  4. Letterhead (if note is on provider's letterhead)
+  5. "MD:", "DO:", "APRN:", "PA:" prefixes in the document
+
+  Include credentials: "John Smith, MD" not just "John Smith"
+  If no provider identifiable, use "Not Specified" (not demographics like patient name)
+  NEVER put patient/claimant name in the provider field
+
+  ================================================================================
+  DEMOGRAPHICS EXCLUSION (NEVER in occurrence_treatment)
+  ================================================================================
+
+  These fields belong ONLY in case header, NOT in occurrence_treatment:
+  - Patient name, DOB, age, sex
+  - Address, phone number, SSN
+  - Insurance information
+  - Emergency contact
+  - Guarantor information
+  - Employer information
+
+  occurrence_treatment contains ONLY clinical content:
+  - Chief complaint (CC) - why patient came in
+  - History of present illness (HPI) - symptom narrative
+  - Physical exam findings
+  - Assessment/diagnoses
+  - Treatment plan
+
+  ================================================================================
+  VISIT TYPE CLASSIFICATION RULES (follow strictly)
+  ================================================================================
+
+  1. **consultative_exam**: Use when document is ordered by SSA, DDS, or
+     state agency. Look for: "Consultative Examination", "CE Report",
+     "Referred by Disability Determination Services". Always extract functional_opinion.
+
+  2. **psych_visit**: Use for psychiatric/psychological treatment notes from
+     psychiatrists, psychologists, LCSWs, LPCs, PMHNPs. Look for: Mental
+     Status Exam, mood/affect descriptions, medication management.
+
+  3. **diagnostic_study**: Use for EMG/NCS, EKG, EEG, Sleep Studies, Stress
+     Tests. NOT imaging (no pictures) and NOT labs (no blood).
+
+  4. **procedural_visit**: Use for minor in-office procedures: injections
+     (epidural, trigger point, joint), wound care, minor excisions.
+
+  5. **medical_source_statement**: Use for RFC forms, Medical Source
+     Statements, doctor opinion letters about functional limitations.
+
+  6. **emergency_visit**: Use for ALL ER/ED visits, even for psychiatric complaints.
+
+  7. **imaging_report**: Look for radiologist headers, "FINDINGS:", "IMPRESSION:"
+
+  8. **surgical_report**: Look for "OPERATIVE REPORT", "PRE-OP DIAGNOSIS"
+
+  9. **lab_result**: Look for lab panels, test names, reference ranges
+
+  DEFAULT: If none of the above apply, use office_visit.
+
+  CLASSIFY FIRST, then extract using the schema for that visit_type.
+
+  ================================================================================
+  CITATION RULES - CRITICAL
+  ================================================================================
+
+  - The input text contains page markers like "[Page 391]" or "[Page 12]".
+  - When extracting an event, find the NEAREST PRECEDING "[Page X]" marker.
+  - The 'page' field in exhibit_reference MUST be the integer X from that marker.
+  - Example: If you see "[Page 391]" then encounter a visit, use "1F@391".
+  - Do NOT guess page numbers. Do NOT default to page 1.
+
+  ================================================================================
+  PROHIBITED
+  ================================================================================
+
+  - ALJ decisions or legal conclusions
+  - Interpretation beyond source material
+  - Speculative diagnoses
+  - Content from sections other than F
+
+# Generic user prompt for multi-visit-type extraction
+user_prompt: |
+  Parse the following F-Section medical records and extract all encounters
+  into a structured chronology.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXHIBIT ID:** {exhibit_id}
+
+  **EXTRACTION REQUIREMENTS:**
+  1. Identify each medical encounter's visit_type
+  2. Extract the specific fields listed below for that visit type
+  3. Include exhibit reference and page range for every entry
+  4. Sort by date (newest first)
+
+  **OUTPUT FORMAT:**
+  Return a JSON array of entries. Each entry must have:
+  - date: "MM/DD/YYYY" format
+  - exhibit_reference: "{exhibit_id}@page" (use page from nearest [Page X] marker)
+  - visit_type: one of the valid types below
+  - provider: provider name with credentials
+  - facility: facility name
+  - occurrence_treatment: object with the fields listed for that visit type
+
+  ================================================================================
+  VISIT TYPE SCHEMAS - USE THESE EXACT FIELD NAMES
+  ================================================================================
+
+  **office_visit** (default for clinic notes, progress notes):
+  - chief_complaint: patient's primary reason for visit (required)
+  - history_present_illness: narrative of current symptoms
+  - physical_exam_findings: array of objective findings
+  - assessment_diagnoses: array of diagnoses (required)
+  - plan_of_care: treatment plan, referrals, follow-up
+
+  **imaging_report** (X-ray, CT, MRI, ultrasound):
+  - imaging_type: "X-ray", "CT", "MRI", "Ultrasound", etc. (required)
+  - body_part: anatomical region imaged (required)
+  - indication: reason for study
+  - technique: imaging technique/protocol
+  - findings: detailed radiologist findings (required)
+  - impression: summary conclusion (required)
+
+  **lab_result** (blood work, urinalysis, panels):
+  - panel_name: name of lab panel (CBC, CMP, etc.)
+  - results_summary: key values with units
+  - abnormal_findings: array of out-of-range results
+
+  **surgical_report** (operative notes):
+  - procedure_name: name of surgery (required)
+  - preoperative_diagnosis: pre-op diagnosis (required)
+  - postoperative_diagnosis: post-op diagnosis
+  - operative_findings: what was found during surgery
+  - surgeon: operating surgeon name
+  - anesthesia_type: type of anesthesia
+  - complications: any complications (or "None")
+
+  **emergency_visit** (ER/ED visits):
+  - chief_complaint: presenting complaint (required)
+  - triage_acuity: ESI level if documented
+  - ed_course: what happened in ED
+  - diagnoses: array of ED diagnoses (required)
+  - disposition: "Discharged", "Admitted", etc.
+
+  **therapy_eval** (PT, OT, Speech):
+  - therapy_type: "physical_therapy", "occupational_therapy", "speech_therapy"
+  - subjective_complaints: patient's reported symptoms
+  - objective_measurements: ROM, strength, functional tests
+  - assessment: therapist assessment
+  - plan: treatment plan and goals
+  - progress_towards_goals: progress notes
+
+  **consultative_exam** (SSA/DDS ordered exams):
+  - ce_type: "Physical" or "Mental" (required)
+  - examiner_specialty: examiner's specialty
+  - history_of_complaint: history as reported to examiner
+  - physical_findings: object with gait_ambulation, range_of_motion, strength_neuro
+  - mental_findings: object with mood_affect, memory_concentration
+  - diagnostic_impression: array of diagnoses
+  - functional_opinion: examiner's opinion on limitations (CRITICAL - always extract)
+
+  **psych_visit** (psychiatry, psychology):
+  - interval_history: what happened since last visit
+  - mental_status_exam: MSE findings (mood, affect, thought process)
+  - diagnoses: array of psychiatric diagnoses
+  - medications: current psych medications
+  - plan: treatment plan
+
+  **inpatient_admission** (hospital stays):
+  - admission_date: date admitted
+  - discharge_date: date discharged
+  - admitting_diagnosis: reason for admission
+  - hospital_course: summary of hospitalization
+  - discharge_diagnoses: array of discharge diagnoses
+  - discharge_disposition: where patient went
+
+  **diagnostic_study** (EMG, EKG, EEG, sleep study):
+  - study_type: type of study (required)
+  - indication: reason for study
+  - findings: study results (required)
+  - interpretation: physician interpretation
+  - impression: conclusion
+
+  **medical_source_statement** (RFC forms, opinion letters):
+  - source_type: "Treating Physician", "Consultative Examiner", etc.
+  - diagnoses: array of diagnoses listed
+  - functional_limitations: specific limitations opined
+  - work_capacity: sedentary, light, medium, etc.
+  - prognosis: expected duration/outcome
+
+  ================================================================================
+  REMEMBER: Extract ALL relevant fields. N/A or empty fields are fine if not documented.
+
+# Core fields present in every extraction entry
+core_fields:
+  date:
+    type: date
+    format: "MM/DD/YYYY"
+    required: true
+    description: "Date of service"
+
+  provider:
+    type: string
+    required: true
+    description: "Provider name with credentials (e.g., 'John Smith, MD')"
+    default: "Not Specified"
+
+  facility:
+    type: string
+    required: true
+    description: "Facility or clinic name"
+    default: "Not Specified"
+
+  exhibit_reference:
+    type: string
+    required: true
+    format: "{exhibit_number}F@{page}"
+    examples: ["2F@12", "15F@45"]
+    description: "ERE exhibit and page reference"
+
+  page_range:
+    type: string
+    required: true
+    format: "{start}-{end}"
+    examples: ["332-337", "45"]
+    description: "Page range within exhibit"
+
+  visit_type:
+    type: string
+    required: true
+    description: "Classification of the medical encounter"
+
+# Output table formatting
+output_formatting:
+  table_columns:
+    - header: "DOS"
+      field: "date"
+      width: "10%"
+    - header: "Provider"
+      field: "provider"
+      width: "15%"
+    - header: "Facility"
+      field: "facility"
+      width: "15%"
+    - header: "Occurrence/Treatment"
+      field: "occurrence_treatment"
+      width: "50%"
+    - header: "Source"
+      field: "exhibit_reference"
+      width: "10%"
+
+# Validation rules
+validation_rules:
+  date_validation:
+    - "Dates must be in MM/DD/YYYY format"
+    - "Reject entries without identifiable dates"
+    - "Flag entries with estimated dates"
+
+  exhibit_reference_validation:
+    - "Must include exhibit number and page (e.g., '2F@12')"
+    - "Page ranges acceptable (e.g., '2F@12-15')"
+
+  content_validation:
+    - "Use exact medical terminology from source"
+    - "Do not interpret or add diagnoses not in source"
+    - "Preserve clinical abbreviations as written"
