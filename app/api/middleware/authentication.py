@@ -1,5 +1,6 @@
 """Authentication middleware for ERE API"""
 import os
+import secrets
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
@@ -28,7 +29,7 @@ async def verify_token(
         HTTPException: 401 if token is invalid
     """
     expected_token = get_api_key()
-    if credentials.credentials != expected_token:
+    if not secrets.compare_digest(credentials.credentials, expected_token):
         raise HTTPException(
             status_code=401,
             detail="Invalid authentication credentials",
