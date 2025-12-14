@@ -9,8 +9,8 @@ and chunking sizes used across the extraction pipeline.
 MAX_EXHIBITS_PER_JOB = 50
 """Maximum number of exhibits to process per job (prevents timeout)"""
 
-MAX_PAGES_PER_EXHIBIT = 30
-"""Maximum pages to extract per exhibit (prevents memory exhaustion)"""
+MAX_PAGES_PER_EXHIBIT = 50
+"""Maximum pages to extract per exhibit (chunked if exceeded)"""
 
 MAX_IMAGES_PER_EXHIBIT = 20
 """Maximum scanned page images per exhibit (prevents OOM errors)"""

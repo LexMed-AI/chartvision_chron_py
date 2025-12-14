@@ -13,7 +13,7 @@ class TestExtractionLimits:
     def test_constants_are_defined(self):
         """Should define all extraction limit constants"""
         assert MAX_EXHIBITS_PER_JOB == 50
-        assert MAX_PAGES_PER_EXHIBIT == 30
+        assert MAX_PAGES_PER_EXHIBIT == 50
         assert MAX_IMAGES_PER_EXHIBIT == 20
         assert DEFAULT_CHUNK_SIZE == 40_000
 
