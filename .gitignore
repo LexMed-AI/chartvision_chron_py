@@ -5,6 +5,8 @@ __pycache__/
 .eggs/
 venv/
 .venv/
+.coverage
+htmlcov/
 
 # Results (may contain PII)
 results/
