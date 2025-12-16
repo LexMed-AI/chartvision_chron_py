@@ -6,11 +6,21 @@ Handles:
 - Concurrent text + vision extraction within a single exhibit
 - Semaphore-controlled parallel processing across multiple exhibits
 - Graceful error handling for failed extractions
+- Format-based extraction routing (RAW_SSA, PROCESSED, COURT_TRANSCRIPT)
+
+Format-based routing optimizations:
+- PROCESSED: 100% searchable text, skip vision extraction entirely
+- COURT_TRANSCRIPT: Image-only, skip text extraction
+- RAW_SSA: ~94% searchable, use text + vision fallback for scanned pages
 """
 import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Awaitable
+
+from app.core.extraction.format_detector import (
+    RAW_SSA, PROCESSED, COURT_TRANSCRIPT, UNKNOWN
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +77,7 @@ class ParallelExtractor:
         vision_extract_fn: Optional[Callable[[List[bytes], str, List[int]], Awaitable[List[Dict[str, Any]]]]] = None,
         max_concurrent: int = 5,
         recovery_fn: Optional[Callable[[List[Dict], List[bytes], str, List[int]], Awaitable[List[Dict]]]] = None,
+        ere_format: Optional[str] = None,
     ):
         """
         Initialize parallel extractor.
@@ -76,12 +87,14 @@ class ParallelExtractor:
             vision_extract_fn: Optional async function for vision extraction (images, exhibit_id, page_nums) -> entries
             max_concurrent: Maximum concurrent exhibit extractions
             recovery_fn: Optional recovery handler for sparse entries
+            ere_format: ERE format type for extraction routing optimization
         """
         self._text_extract = text_extract_fn
         self._vision_extract = vision_extract_fn
         self._recovery_fn = recovery_fn
         self._max_concurrent = max_concurrent
         self._semaphore: Optional[asyncio.Semaphore] = None
+        self._ere_format = ere_format or UNKNOWN
 
     async def extract_exhibits(
         self,
@@ -167,18 +180,26 @@ class ParallelExtractor:
             try:
                 extraction_tasks = []
 
-                # Prepare text extraction task
-                if text.strip():
+                # Format-based extraction routing
+                skip_text = self._ere_format == COURT_TRANSCRIPT
+                skip_vision = self._ere_format == PROCESSED
+
+                # Prepare text extraction task (skip for COURT_TRANSCRIPT - images only)
+                if text.strip() and not skip_text:
                     extraction_tasks.append(
                         ("text", self._text_extract(text, exhibit_id))
                     )
+                elif skip_text:
+                    logger.debug(f"Skipping text extraction for {exhibit_id} (COURT_TRANSCRIPT format)")
 
-                # Prepare vision extraction task
-                if images and self._vision_extract:
+                # Prepare vision extraction task (skip for PROCESSED - 100% searchable)
+                if images and self._vision_extract and not skip_vision:
                     result.used_vision = True
                     extraction_tasks.append(
                         ("vision", self._vision_extract(images, exhibit_id, scanned_page_nums))
                     )
+                elif skip_vision and images:
+                    logger.debug(f"Skipping vision extraction for {exhibit_id} (PROCESSED format)")
 
                 if not extraction_tasks:
                     return result
@@ -205,10 +226,13 @@ class ParallelExtractor:
                             logger.info(f"Extracted {len(task_result)} entries via vision from {exhibit_id}")
 
                 # Apply recovery for sparse entries if handler provided
-                if images and self._recovery_fn:
+                # Skip recovery for PROCESSED format (100% searchable, no scanned pages)
+                if images and self._recovery_fn and self._ere_format != PROCESSED:
                     entries = await self._recovery_fn(
                         entries, images, exhibit_id, scanned_page_nums
                     )
+                elif self._ere_format == PROCESSED and images:
+                    logger.debug(f"Skipping recovery for {exhibit_id} (PROCESSED format)")
 
                 result.entries = entries
                 logger.info(f"Extracted {len(entries)} total entries from {exhibit_id}")

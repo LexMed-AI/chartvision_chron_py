@@ -3,6 +3,7 @@ ChronologyEngine - Slim orchestrator for medical chronology extraction.
 
 Replaces the 1,255-line UnifiedChronologyEngine monolith.
 Delegates to focused components with parallel extraction support.
+Supports format-based extraction routing (RAW_SSA, PROCESSED, COURT_TRANSCRIPT).
 """
 import logging
 import time
@@ -10,6 +11,9 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
 from app.core.extraction.citation_resolver import CitationResolver
+from app.core.extraction.format_detector import (
+    RAW_SSA, PROCESSED, COURT_TRANSCRIPT, UNKNOWN
+)
 
 from .text_extractor import TextExtractor
 from .vision_extractor import VisionExtractor
@@ -48,6 +52,7 @@ class ChronologyEngine:
         enable_parallel: bool = True,
         max_concurrent: int = 5,
         allow_lazy_init: bool = True,
+        ere_format: Optional[str] = None,
     ):
         """Initialize engine with LLM port.
 
@@ -58,6 +63,7 @@ class ChronologyEngine:
             enable_parallel: Enable parallel exhibit extraction
             max_concurrent: Maximum concurrent exhibit extractions (default 5)
             allow_lazy_init: Allow lazy LLMManager init (for backward compat)
+            ere_format: ERE format type for extraction routing (RAW_SSA, PROCESSED, COURT_TRANSCRIPT)
         """
         # Prefer new llm parameter, fall back to deprecated llm_manager
         self._llm_port = llm or llm_manager
@@ -71,6 +77,7 @@ class ChronologyEngine:
         self._enable_recovery = enable_recovery
         self._enable_parallel = enable_parallel
         self._max_concurrent = max_concurrent
+        self._ere_format = ere_format or UNKNOWN
 
     @property
     def llm(self):
@@ -127,6 +134,7 @@ class ChronologyEngine:
                 vision_extract_fn=self.vision_extractor.extract if self.vision_extractor else None,
                 max_concurrent=self._max_concurrent,
                 recovery_fn=recovery_fn,
+                ere_format=self._ere_format,
             )
         return self._parallel_extractor
 

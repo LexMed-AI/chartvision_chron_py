@@ -2,23 +2,30 @@
 Chronology Extraction Service.
 
 Handles extraction of chronology entries from F-section medical exhibits.
+Supports format-based extraction routing (RAW_SSA, PROCESSED, COURT_TRANSCRIPT).
 """
 import logging
 import traceback
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.config.extraction_limits import MAX_EXHIBITS_PER_JOB, MAX_PAGES_PER_EXHIBIT
+from app.core.extraction.format_detector import UNKNOWN
 
 logger = logging.getLogger(__name__)
 
 
-async def extract_chronology(file_path: str, job_id: str) -> List[Dict[str, Any]]:
+async def extract_chronology(
+    file_path: str,
+    job_id: str,
+    ere_format: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """
     Extract chronology entries from F-section exhibits.
 
     Args:
         file_path: Path to PDF file
         job_id: Job identifier for case info
+        ere_format: Optional ERE format type for extraction routing
 
     Returns:
         List of chronology entry dictionaries
@@ -39,7 +46,7 @@ async def extract_chronology(file_path: str, job_id: str) -> List[Dict[str, Any]
             return []
 
         llm = BedrockAdapter()
-        engine = ChronologyEngine(llm=llm)
+        engine = ChronologyEngine(llm=llm, ere_format=ere_format)
         result = await engine.generate_chronology(
             exhibits=f_exhibits,
             case_info={"job_id": job_id},
@@ -68,7 +75,7 @@ async def extract_chronology_with_progress(
     Args:
         file_path: Path to PDF file
         job_id: Job identifier for case info
-        job: Job dictionary for progress updates
+        job: Job dictionary for progress updates (includes ere_format)
 
     Returns:
         List of chronology entry dictionaries
@@ -78,12 +85,15 @@ async def extract_chronology_with_progress(
         from app.core.extraction import ChronologyEngine
         from app.adapters.llm import BedrockAdapter
 
+        # Get ERE format from job for extraction routing
+        ere_format = job.get("ere_format", UNKNOWN)
+
         f_exhibits = extract_f_exhibits_from_pdf(
             file_path,
             max_exhibits=MAX_EXHIBITS_PER_JOB,
             max_pages_per_exhibit=MAX_PAGES_PER_EXHIBIT,
         )
-        logger.info(f"Extracted {len(f_exhibits)} F-section exhibits")
+        logger.info(f"Extracted {len(f_exhibits)} F-section exhibits (format: {ere_format})")
 
         if not f_exhibits:
             return []
@@ -92,7 +102,7 @@ async def extract_chronology_with_progress(
         job["progress"] = 0.6
 
         llm = BedrockAdapter()
-        engine = ChronologyEngine(llm=llm)
+        engine = ChronologyEngine(llm=llm, ere_format=ere_format)
         result = await engine.generate_chronology(
             exhibits=f_exhibits,
             case_info={"job_id": job_id},
