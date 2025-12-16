@@ -26,6 +26,7 @@ from app.api.processors.job_lifecycle import (
     complete_chartvision_job,
     fail_job,
 )
+from app.core.extraction.format_detector import detect_ere_format
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,11 @@ async def process_ere_job(
 
     try:
         file_path = job["file_path"]
+
+        # Step 0: Detect ERE format (additive metadata, doesn't change processing)
+        ere_format = detect_ere_format(file_path)
+        job["ere_format"] = ere_format
+        logger.info(f"Job {job_id}: Detected ERE format: {ere_format}")
 
         # Step 1: Segment PDF by bookmarks
         job["current_step"] = "Segmenting PDF by bookmarks"
@@ -136,6 +142,11 @@ async def process_chartvision_job(
 
     try:
         file_path = job["file_path"]
+
+        # Step 0: Detect ERE format (additive metadata, doesn't change processing)
+        ere_format = detect_ere_format(file_path)
+        job["ere_format"] = ere_format
+        logger.info(f"Job {job_id}: Detected ERE format: {ere_format}")
 
         # Step 1: Extract exhibits from PDF bookmarks
         job["current_step"] = "Extracting exhibits from bookmarks"
