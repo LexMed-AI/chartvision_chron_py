@@ -4,7 +4,19 @@ Content analysis for chronology entries.
 Domain logic for detecting sparse/incomplete medical record extractions.
 This identifies entries where the LLM extracted headers (date, provider, visit_type)
 but the actual medical content is missing - typically because it was in a scanned image.
+
+Field names are loaded dynamically from YAML templates (single source of truth).
 """
+from typing import Dict, List, Optional
+
+# Cached content fields - loaded once from templates
+_CONTENT_FIELDS_CACHE: Optional[Dict[str, List[str]]] = None
+
+# Common fallback fields when LLM uses office_visit schema for other types
+_FALLBACK_FIELDS = [
+    "chief_complaint", "findings", "assessment",
+    "assessment_diagnoses", "plan_of_care"
+]
 
 
 def is_content_sparse(entry: dict) -> bool:
@@ -36,16 +48,9 @@ def is_content_sparse(entry: dict) -> bool:
         # String occurrence - check if meaningful
         return len(str(occ).strip()) < 20
 
-    # Check if all detail fields are empty/None
-    # These are the key content fields per visit type (aligned with YAML template field names)
-    # NOTE: LLM sometimes returns office_visit fields for other visit types, so we also check those
+    # Get fields to check from templates (with fallback)
     content_fields = _get_content_fields()
-
-    # Get relevant fields for this visit type - with fallback to common content fields
-    fields_to_check = content_fields.get(
-        visit_type,
-        ["chief_complaint", "findings", "assessment", "assessment_diagnoses", "plan_of_care"]
-    )
+    fields_to_check = content_fields.get(visit_type, _FALLBACK_FIELDS)
 
     for field in fields_to_check:
         value = occ.get(field)
@@ -60,50 +65,38 @@ def is_content_sparse(entry: dict) -> bool:
     return True  # All content fields are empty
 
 
-def _get_content_fields() -> dict:
-    """Get content field mappings per visit type."""
-    return {
-        "office_visit": [
-            "chief_complaint", "history_present_illness",
-            "assessment_diagnoses", "plan_of_care"
-        ],
-        # imaging_report: check both proper schema AND office_visit fields that LLM may return
-        "imaging_report": [
-            "findings", "impression", "indication", "imaging_type",
-            "body_part", "assessment_diagnoses", "plan_of_care"
-        ],
-        "lab_result": [
-            "results_summary", "panel_name", "result_value",
-            "test_name", "results", "interpretation"
-        ],
-        # therapy_eval: check both proper schema AND office_visit fields
-        "therapy_eval": [
-            "subjective_complaints", "objective_measurements", "assessment",
-            "plan", "therapy_type", "assessment_diagnoses", "plan_of_care"
-        ],
-        "surgical_report": [
-            "procedure_name", "operative_findings",
-            "preoperative_diagnosis", "postoperative_diagnosis", "findings"
-        ],
-        "consultative_exam": [
-            "history_of_complaint", "physical_findings", "functional_opinion"
-        ],
-        "psych_visit": [
-            "interval_history", "mental_status_exam", "treatment_plan"
-        ],
-        "diagnostic_study": [
-            "technical_findings", "interpretation", "findings"
-        ],
-        "procedural_visit": [
-            "procedure_details", "outcome", "procedure_name"
-        ],
-        "emergency_visit": [
-            "chief_complaint", "clinical_course", "disposition"
-        ],
-        "inpatient_admission": [
-            "reason_for_admission", "hospital_course", "discharge_summary"
-        ],
-        "medical_source_statement": [
-            "functional_limitations", "opinion_basis", "diagnoses_assessed"
-        ],
-    }
+def _get_content_fields() -> Dict[str, List[str]]:
+    """Load content field names from YAML templates.
+
+    Dynamically reads field definitions from config/templates/*.yaml
+    to ensure single source of truth. Results are cached for performance.
+
+    Returns:
+        Dict mapping visit_type to list of field names
+    """
+    global _CONTENT_FIELDS_CACHE
+
+    if _CONTENT_FIELDS_CACHE is not None:
+        return _CONTENT_FIELDS_CACHE
+
+    # Lazy import to avoid circular dependencies
+    from app.core.extraction.template_loader import get_template_loader
+
+    loader = get_template_loader()
+    fields = {}
+
+    for visit_type in loader.list_visit_types():
+        template_fields = loader.get_fields(visit_type)
+        if template_fields:
+            # Include all template fields plus common fallbacks
+            field_names = list(template_fields.keys()) + _FALLBACK_FIELDS
+            fields[visit_type] = list(set(field_names))  # Deduplicate
+
+    _CONTENT_FIELDS_CACHE = fields
+    return fields
+
+
+def clear_content_fields_cache() -> None:
+    """Clear the cached content fields (for testing)."""
+    global _CONTENT_FIELDS_CACHE
+    _CONTENT_FIELDS_CACHE = None

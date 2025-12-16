@@ -1,9 +1,9 @@
-# Hospital Admission Extraction Template
-# For: Inpatient Records, Discharge Summaries, H&P, Emergency Department
+# Inpatient Admission Extraction Template
+# For: Inpatient Records, Discharge Summaries, H&P
 #
 # Version: 1.0.0
 
-visit_type: "hospital_admission"
+visit_type: "inpatient_admission"
 description: "Inpatient hospital records, discharge summaries, and ED visits"
 
 # User prompt specific to hospital admissions
@@ -28,7 +28,7 @@ user_prompt: |
   - Discharge disposition
   - Discharge medications/instructions
 
-  **OUTPUT:** Return JSON array following the hospital_admission schema.
+  **OUTPUT:** Return JSON array following the inpatient_admission schema.
 
 # Fields specific to hospital admissions
 fields:
@@ -161,7 +161,7 @@ examples:
       facility: "Baptist Medical Center"
       exhibit_reference: "7F@201"
       page_range: "201-215"
-      visit_type: "hospital_admission"
+      visit_type: "inpatient_admission"
       admission_date: "05/12/2022"
       discharge_date: "05/15/2022"
       admission_type: "Inpatient"
@@ -212,7 +212,7 @@ examples:
       facility: "Memorial ER"
       exhibit_reference: "15F@45"
       page_range: "45-48"
-      visit_type: "hospital_admission"
+      visit_type: "inpatient_admission"
       admission_date: "11/23/2021"
       admission_type: "Emergency Department"
       chief_complaint: "Fall with head injury"

@@ -175,9 +175,10 @@ user_prompt: |
   - impression: summary conclusion (required)
 
   **lab_result** (blood work, urinalysis, panels):
-  - panel_name: name of lab panel (CBC, CMP, etc.)
-  - results_summary: key values with units
-  - abnormal_findings: array of out-of-range results
+  - test_panel: name of lab panel (CBC, CMP, Lipid Panel, etc.)
+  - tests: array of individual test results with test_name, result_value, reference_range, abnormal_flag
+  - summary: condensed summary of key findings (e.g., "Glucose 142 (H), Creatinine 1.4 (H)")
+  - clinical_significance: clinical interpretation if provided
 
   **surgical_report** (operative notes):
   - procedure_name: name of surgery (required)

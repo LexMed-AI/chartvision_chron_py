@@ -63,11 +63,15 @@ class PyMuPDFAdapter(PDFPort):
 
                 bookmarks = []
                 for i, (level, title, page) in enumerate(toc):
-                    # Calculate end page from next bookmark or doc end
-                    if i + 1 < len(toc):
-                        end_page = toc[i + 1][2] - 1
-                    else:
-                        end_page = page_count
+                    # Find next bookmark at same or higher level (sibling/parent)
+                    # Skip child bookmarks when calculating end page
+                    end_page = page_count
+                    for j in range(i + 1, len(toc)):
+                        next_level, _, next_page = toc[j]
+                        if next_level <= level:
+                            # Found sibling or parent - use its start page - 1
+                            end_page = next_page - 1
+                            break
 
                     bookmarks.append(Bookmark(
                         title=title,

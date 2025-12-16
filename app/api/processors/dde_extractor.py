@@ -21,6 +21,23 @@ except ImportError:
     logger.warning("DDEParser not available")
 
 
+# Patterns that identify Section A DDE documents
+DDE_PATTERNS = [
+    "DDE",
+    "DISABILITY DETERMINATION",
+    "RFC ASSESSMENT",
+    "RESIDUAL FUNCTIONAL CAPACITY",
+    "PRTF",
+    "PSYCHIATRIC REVIEW TECHNIQUE",
+    "STATE AGENCY",
+    "MEDICAL CONSULTANT",
+    "PSYCHOLOGICAL CONSULTANT",
+    "CASE ANALYSIS",
+    "RATIONALE",
+    "4734",  # Physical RFC form
+]
+
+
 def is_dde_exhibit(exhibit: Dict[str, Any]) -> bool:
     """
     Check if an exhibit is a DDE document.
@@ -29,10 +46,10 @@ def is_dde_exhibit(exhibit: Dict[str, Any]) -> bool:
         exhibit: Exhibit dictionary with 'title' field
 
     Returns:
-        True if exhibit title contains "DDE" or "Disability Determination Explanation"
+        True if exhibit title contains DDE-related patterns
     """
     title = exhibit.get("title", "").upper()
-    return "DDE" in title or "DISABILITY DETERMINATION EXPLANATION" in title
+    return any(pattern in title for pattern in DDE_PATTERNS)
 
 
 def find_latest_dde_exhibit(section_a_exhibits: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -45,10 +62,17 @@ def find_latest_dde_exhibit(section_a_exhibits: List[Dict[str, Any]]) -> Optiona
     Returns:
         Latest DDE exhibit by page number, or None if no DDE found
     """
+    logger.info(f"Searching {len(section_a_exhibits)} Section A exhibits for DDE")
+    for e in section_a_exhibits:
+        logger.debug(f"  Section A exhibit: {e.get('title', 'No title')[:80]}")
+
     dde_exhibits = [e for e in section_a_exhibits if is_dde_exhibit(e)]
 
     if not dde_exhibits:
-        logger.warning("No DDE documents found in Section A")
+        logger.warning(
+            f"No DDE documents found in Section A. "
+            f"Exhibit titles: {[e.get('title', '')[:50] for e in section_a_exhibits]}"
+        )
         return None
 
     # Get the latest DDE by page number (most recent determination)

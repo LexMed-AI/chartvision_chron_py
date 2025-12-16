@@ -1,0 +1,197 @@
+# Procedural Visit Extraction Template
+# For: Minor in-office procedures, injections, wound care
+#
+# Version: 1.0.0
+
+visit_type: "procedural_visit"
+description: "Minor in-office procedures: injections, wound care, minor excisions"
+
+# User prompt specific to procedural visits
+user_prompt: |
+  Parse the following procedural visit records and extract all procedures.
+
+  **MEDICAL RECORDS:**
+  {medical_content}
+
+  **EXTRACT FOR EACH PROCEDURE:**
+  - Date of procedure
+  - Performing provider
+  - Facility
+  - Procedure name/type
+  - Indication (reason for procedure)
+  - Technique used
+  - Medications/anesthesia given
+  - Findings during procedure
+  - Complications (if any)
+  - Post-procedure instructions
+  - Follow-up plan
+
+  **OUTPUT:** Return JSON array following the procedural_visit schema.
+
+# Fields specific to procedural visits
+fields:
+  procedure_name:
+    type: string
+    required: true
+    label: "Procedure"
+    description: "Name of procedure performed"
+
+  procedure_type:
+    type: enum
+    required: false
+    label: "Type"
+    values:
+      - "Injection"
+      - "Aspiration"
+      - "Biopsy"
+      - "Excision"
+      - "Wound Care"
+      - "Suturing"
+      - "Other"
+    description: "Category of procedure"
+
+  indication:
+    type: text
+    required: true
+    label: "Indication"
+    description: "Reason for the procedure"
+
+  anatomic_site:
+    type: string
+    required: false
+    label: "Site"
+    description: "Body location where procedure performed"
+
+  technique:
+    type: text
+    required: false
+    label: "Technique"
+    description: "Description of technique used"
+
+  medications_given:
+    type: array
+    items: string
+    required: false
+    label: "Meds"
+    description: "Medications administered (anesthesia, steroids, etc.)"
+
+  findings:
+    type: text
+    required: false
+    label: "Findings"
+    description: "Observations during procedure"
+
+  outcome:
+    type: string
+    required: false
+    label: "Outcome"
+    description: "Immediate outcome (tolerated well, complications, etc.)"
+
+  complications:
+    type: string
+    required: false
+    label: "Complications"
+    description: "Any complications (or None)"
+
+  post_procedure_instructions:
+    type: text
+    required: false
+    label: "Instructions"
+    description: "Post-procedure care instructions"
+
+# Output labels for occurrence_treatment column
+output_labels: ["Procedure", "Site", "Indication", "Technique", "Outcome"]
+
+# Formatting example
+output_example: |
+  Procedure: Lumbar epidural steroid injection
+  Site: L4-L5 interspace
+  Indication: Chronic low back pain with radiculopathy
+  Technique: Fluoroscopic guidance, 80mg Depo-Medrol + 2mL 0.25% bupivacaine
+  Outcome: Tolerated well, no complications
+
+# Few-shot examples for LLM
+examples:
+  - input: |
+      PROCEDURE NOTE
+      Date: 03/15/2023
+      Provider: James Wilson, MD (Pain Management)
+      Facility: Advanced Pain Center
+
+      PROCEDURE: Lumbar epidural steroid injection, L4-L5
+
+      INDICATION: Chronic low back pain with left L5 radiculopathy,
+      failed conservative management.
+
+      CONSENT: Risks, benefits, alternatives discussed. Written consent obtained.
+
+      TECHNIQUE: Patient in prone position. Timeout performed. Skin prepped
+      with chlorhexidine. Using fluoroscopic guidance, 22g Tuohy needle
+      advanced to L4-L5 epidural space via interlaminar approach. Contrast
+      confirmed epidural spread. Injected 80mg Depo-Medrol + 2mL 0.25%
+      bupivacaine. Needle removed, hemostasis achieved.
+
+      COMPLICATIONS: None. Patient tolerated procedure well.
+
+      POST-PROCEDURE: Monitored 30 minutes. Vitals stable. Discharged with
+      instructions to avoid driving today, ice as needed, resume normal
+      activities tomorrow.
+
+      FOLLOW-UP: Return in 2 weeks to assess response.
+    output:
+      date: "03/15/2023"
+      provider: "James Wilson, MD"
+      facility: "Advanced Pain Center"
+      exhibit_reference: "5F@78"
+      page_range: "78-79"
+      visit_type: "procedural_visit"
+      procedure_name: "Lumbar epidural steroid injection"
+      procedure_type: "Injection"
+      anatomic_site: "L4-L5 interspace"
+      indication: "Chronic low back pain with left L5 radiculopathy, failed conservative management"
+      technique: "Fluoroscopic guidance, 22g Tuohy needle via interlaminar approach"
+      medications_given:
+        - "80mg Depo-Medrol"
+        - "2mL 0.25% bupivacaine"
+      outcome: "Tolerated well"
+      complications: "None"
+      post_procedure_instructions: "Avoid driving today, ice as needed, resume normal activities tomorrow"
+
+  - input: |
+      PROCEDURE NOTE
+      Date: 08/22/2022
+      Provider: Sarah Chen, MD
+      Facility: Orthopedic Associates
+
+      PROCEDURE: Right knee joint aspiration and injection
+
+      INDICATION: Right knee osteoarthritis with effusion
+
+      TECHNIQUE: Knee prepped sterilely. 18g needle inserted into
+      suprapatellar pouch. Aspirated 35mL cloudy yellow fluid. Injected
+      40mg triamcinolone + 5mL 1% lidocaine. Bandage applied.
+
+      FLUID: Sent for cell count, crystals, culture.
+
+      COMPLICATIONS: None
+
+      INSTRUCTIONS: Ice 20 min q2h today. Limit activity 24 hours.
+    output:
+      date: "08/22/2022"
+      provider: "Sarah Chen, MD"
+      facility: "Orthopedic Associates"
+      exhibit_reference: "9F@156"
+      page_range: "156"
+      visit_type: "procedural_visit"
+      procedure_name: "Right knee joint aspiration and injection"
+      procedure_type: "Aspiration"
+      anatomic_site: "Right knee, suprapatellar pouch"
+      indication: "Right knee osteoarthritis with effusion"
+      technique: "18g needle, aspirated 35mL cloudy yellow fluid"
+      medications_given:
+        - "40mg triamcinolone"
+        - "5mL 1% lidocaine"
+      findings: "35mL cloudy yellow fluid aspirated, sent for analysis"
+      outcome: "Successful aspiration and injection"
+      complications: "None"
+      post_procedure_instructions: "Ice 20 min q2h today. Limit activity 24 hours."
