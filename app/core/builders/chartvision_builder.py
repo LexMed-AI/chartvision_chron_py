@@ -291,11 +291,14 @@ class ChartVisionBuilder:
         determination = dde_result.get("determinationHistory", {})
         mdi = dde_result.get("medicallyDeterminableImpairments", {})
 
-        # Parse claimant data
-        claimant_name = fields.get("claimant_name", "Unknown")
-        dob_str = fields.get("date_of_birth")
+        # DDE parser returns nested structure: fields.case_metadata contains claimant info
+        case_metadata = fields.get("case_metadata", {})
+
+        # Parse claimant data - check case_metadata first, then fall back to top-level fields
+        claimant_name = case_metadata.get("claimant_name") or fields.get("claimant_name", "Unknown")
+        dob_str = case_metadata.get("date_of_birth") or fields.get("date_of_birth")
         dob = parse_date(dob_str) if dob_str else date(1900, 1, 1)
-        ssn_last_four = fields.get("ssn_last_four")
+        ssn_last_four = case_metadata.get("ssn_last_four") or fields.get("ssn_last_four")
 
         self.set_claimant(
             full_name=claimant_name,
@@ -305,11 +308,11 @@ class ChartVisionBuilder:
             ssn_last_four=ssn_last_four,
         )
 
-        # Parse administrative data
-        claim_type = fields.get("claim_type", "Unknown")
-        onset_str = fields.get("alleged_onset_date")
-        filing_str = fields.get("protective_filing_date")
-        dli_str = fields.get("date_last_insured")
+        # Parse administrative data - check case_metadata first, then top-level fields
+        claim_type = case_metadata.get("claim_type") or fields.get("claim_type", "Unknown")
+        onset_str = case_metadata.get("alleged_onset_date") or fields.get("alleged_onset_date")
+        filing_str = case_metadata.get("protective_filing_date") or fields.get("protective_filing_date")
+        dli_str = case_metadata.get("date_last_insured") or fields.get("date_last_insured")
 
         onset_date = parse_date(onset_str) if onset_str else date.today()
         filing_date = parse_date(filing_str) if filing_str else date.today()
