@@ -84,7 +84,7 @@ base_system_prompt: |
   2. Include exhibit references for every entry (e.g., "2F@12")
   3. Capture both subjective complaints and objective findings
   4. Maintain clinical accuracy - never interpret or diagnose
-  5. Sort entries in reverse chronological order (newest first)
+  5. Do NOT sort entries - sorting is handled programmatically after extraction
 
 # =============================================================================
 # VISION-SPECIFIC ADDITIONS
