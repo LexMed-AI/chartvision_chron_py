@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import List, Optional
 
 import boto3
+from botocore.config import Config
 
 from app.core.ports.llm import LLMPort, ModelConfig
 from app.core.exceptions import LLMError
@@ -58,7 +59,9 @@ class BedrockAdapter(LLMPort):
             requests_per_minute: Rate limit for API calls
         """
         session = boto3.Session()
-        self._client = session.client("bedrock-runtime", region_name=region)
+        # Increase read timeout for large text chunks (default 60s is too short)
+        boto_config = Config(read_timeout=180, connect_timeout=10)
+        self._client = session.client("bedrock-runtime", region_name=region, config=boto_config)
         self._rate_limiter = RateLimiter(requests_per_minute=requests_per_minute)
         self._cost_tracker = CostTracker()
 

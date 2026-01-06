@@ -49,7 +49,7 @@ def is_retryable_error(error: Exception, retryable_types: Optional[Set[str]] = N
         return True
 
     # Check for common throttling indicators in error message
-    throttle_indicators = ["throttl", "rate limit", "too many requests", "capacity"]
+    throttle_indicators = ["throttl", "rate limit", "too many requests", "capacity", "timeout"]
     if any(indicator in error_str for indicator in throttle_indicators):
         return True
 

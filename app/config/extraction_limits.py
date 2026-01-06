@@ -16,5 +16,5 @@ MAX_IMAGES_PER_EXHIBIT = 50
 """Maximum scanned page images per exhibit (VisionExtractor batches internally)"""
 
 # Text chunking limits
-DEFAULT_CHUNK_SIZE = 40_000
+DEFAULT_CHUNK_SIZE = 30_000
 """Default character chunk size for LLM text extraction (Bedrock timeout prevention)"""
