@@ -15,6 +15,8 @@ from .retry_utils import retry_with_backoff, RetryConfig
 from .llm_config import LLM_SETTINGS
 from .text_chunker import TextChunker, merge_chunk_results
 from .template_loader import get_template_loader
+from .citation_matcher import CitationMatcher
+from .pdf_exhibit_extractor import PageText
 
 logger = logging.getLogger(__name__)
 
@@ -51,20 +53,46 @@ class TextExtractor:
         # Use 40K as safe default to avoid timeout (12F at 53K was timing out)
         self._chunker = TextChunker(max_chars=min(threshold, 40000), overlap_chars=500)
 
-    async def extract(self, text: str, exhibit_id: str) -> List[Dict[str, Any]]:
+    async def extract(
+        self,
+        text: str,
+        exhibit_id: str,
+        pages: Optional[List[PageText]] = None,
+        exhibit_context: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Extract medical entries from text with exponential backoff retry.
 
         Automatically chunks large texts to avoid Bedrock timeout.
+        Optionally attaches citations when pages and exhibit_context are provided.
+
+        Args:
+            text: Text content to extract from
+            exhibit_id: Exhibit identifier (e.g., "25F")
+            pages: Optional list of PageText objects for citation matching
+            exhibit_context: Optional exhibit metadata for citation matching
+
+        Returns:
+            List of extracted entry dicts, optionally with citation attached
         """
         if not text.strip():
             return []
 
         # Check if chunking is needed
         if self._chunker.needs_chunking(text):
-            return await self._extract_chunked(text, exhibit_id)
+            entries = await self._extract_chunked(text, exhibit_id)
+        else:
+            entries = await self._extract_single(text, exhibit_id)
 
-        return await self._extract_single(text, exhibit_id)
+        # Post-extraction citation matching
+        if pages and exhibit_context:
+            matcher = CitationMatcher(pages, exhibit_context)
+            for entry in entries:
+                match_result = matcher.match(entry)
+                entry["citation"] = match_result.citation
+                entry["citation_confidence"] = match_result.match_score
+
+        return entries
 
     async def _extract_single(self, text: str, exhibit_id: str) -> List[Dict[str, Any]]:
         """Extract from a single text block (under chunk threshold)."""

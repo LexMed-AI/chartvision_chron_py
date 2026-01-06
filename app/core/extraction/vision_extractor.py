@@ -13,6 +13,7 @@ from .response_parser import ResponseParser
 from .retry_utils import retry_with_backoff, RetryConfig
 from .llm_config import LLM_SETTINGS
 from .template_loader import get_template_loader
+from app.core.models.citation import Citation
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,11 @@ class VisionExtractor:
         )
 
     async def extract(
-        self, images: List[bytes], exhibit_id: str, page_nums: List[int]
+        self,
+        images: List[bytes],
+        exhibit_id: str,
+        page_nums: List[int],
+        exhibit_context: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """Extract medical entries from page images.
 
@@ -59,6 +64,7 @@ class VisionExtractor:
             images: List of PNG image bytes
             exhibit_id: Exhibit identifier (e.g., "1F")
             page_nums: Corresponding page numbers for citation
+            exhibit_context: Optional context with exhibit_start, exhibit_end, total_pages
 
         Returns:
             List of medical entry dictionaries
@@ -72,6 +78,11 @@ class VisionExtractor:
             batch_pages = page_nums[i:i + self._batch_size] if page_nums else []
             try:
                 entries = await self._extract_batch(batch_imgs, exhibit_id, batch_pages)
+                # Attach citations to entries
+                if batch_pages and exhibit_context:
+                    for entry in entries:
+                        citation = self._build_citation(batch_pages, exhibit_id, exhibit_context)
+                        entry["citation"] = citation
                 all_entries.extend(entries)
             except Exception as e:
                 logger.error(f"Vision batch failed for {exhibit_id}: {e}")
@@ -130,3 +141,43 @@ Return JSON array only."""
             entry.setdefault("occurrence_treatment", {})
             validated.append(entry)
         return validated
+
+    def _build_citation(
+        self,
+        page_nums: List[int],
+        exhibit_id: str,
+        exhibit_context: Dict[str, Any],
+    ) -> Citation:
+        """Build citation from batch page numbers.
+
+        Args:
+            page_nums: Page numbers in the batch
+            exhibit_id: Exhibit identifier (e.g., "25F")
+            exhibit_context: Context with exhibit_start, total_pages
+
+        Returns:
+            Citation with deterministic page attribution
+        """
+        exhibit_start = exhibit_context.get("exhibit_start", page_nums[0])
+        total_pages = exhibit_context.get("total_pages")
+
+        primary_page = page_nums[0]
+        relative_page = primary_page - exhibit_start + 1
+
+        citation = Citation(
+            exhibit_id=exhibit_id,
+            relative_page=relative_page,
+            absolute_page=primary_page,
+            total_pages=total_pages,
+            is_estimated=False,  # Vision pages are deterministic
+            confidence=0.95,
+            source_type="ere",
+        )
+
+        # Add range if multi-page batch
+        if len(page_nums) > 1:
+            end_page = page_nums[-1]
+            citation.end_relative_page = end_page - exhibit_start + 1
+            citation.end_absolute_page = end_page
+
+        return citation

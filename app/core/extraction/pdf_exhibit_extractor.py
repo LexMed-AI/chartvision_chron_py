@@ -31,8 +31,34 @@ class PageText:
     text: str
     header_info: Optional[Dict[str, Any]] = None
 
+
 # Memory limits for image extraction
 from app.config.extraction_limits import MAX_IMAGES_PER_EXHIBIT
+
+
+def build_combined_text(pages: List[PageText]) -> str:
+    """
+    Combine pages into single text for LLM extraction.
+
+    Pages with detected headers (confidence > 0.5) use natural text.
+    Pages without headers get [PAGE X] markers injected.
+
+    Args:
+        pages: List of PageText objects
+
+    Returns:
+        Combined text with page boundary markers where needed
+    """
+    parts = []
+    for page in pages:
+        if page.header_info and page.header_info.get("confidence", 0) > 0.5:
+            # Header detected - use natural text
+            parts.append(page.text)
+        else:
+            # No header - inject marker
+            parts.append(f"[PAGE {page.absolute_page}]\n{page.text}")
+
+    return "\n\n".join(parts)
 
 
 def extract_f_exhibits_from_pdf(
@@ -194,3 +220,164 @@ def load_bookmark_metadata(metadata_path: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to load bookmark metadata from {metadata_path}: {e}")
         return {}
+
+
+def extract_f_exhibits_with_pages(
+    pdf_path: str,
+    max_exhibits: Optional[int] = None,
+    max_pages_per_exhibit: int = 50
+) -> List[Dict[str, Any]]:
+    """
+    Extract F-section exhibits with page-level text segmentation.
+
+    Enhanced version of extract_f_exhibits_from_pdf that preserves
+    page boundaries for citation matching.
+
+    Args:
+        pdf_path: Path to ERE PDF file
+        max_exhibits: Maximum number of exhibits to extract
+        max_pages_per_exhibit: Maximum pages per exhibit
+
+    Returns:
+        List of exhibit dicts with structure:
+        {
+            "exhibit_id": str,
+            "pages": List[PageText],      # Individual pages with metadata
+            "combined_text": str,          # For LLM (with markers where needed)
+            "page_range": (start, end),
+            "images": List[bytes],
+            "scanned_page_nums": List[int],
+            "has_scanned_pages": bool,
+        }
+    """
+    import fitz
+    from app.adapters.pdf.preprocessing import (
+        is_scanned_page,
+        render_page_to_image,
+    )
+    from app.core.extraction.header_detector import HeaderDetector
+
+    try:
+        doc = fitz.open(pdf_path)
+        toc = doc.get_toc()
+        header_detector = HeaderDetector()
+
+        # Extract F-section exhibits from bookmarks
+        f_exhibits = []
+        for level, title, page in toc:
+            match = re.match(r'^(\d+F)\s*[-:]', title)
+            if match:
+                f_exhibits.append({
+                    "exhibit_id": match.group(1),
+                    "title": title,
+                    "start_page": page,
+                })
+
+        # Calculate end pages
+        for i, ex in enumerate(f_exhibits):
+            if i < len(f_exhibits) - 1:
+                ex["end_page"] = f_exhibits[i + 1]["start_page"] - 1
+            else:
+                ex["end_page"] = len(doc)
+
+        logger.info(f"Found {len(f_exhibits)} F-section exhibits in PDF (page-level)")
+
+        if max_exhibits:
+            f_exhibits = f_exhibits[:max_exhibits]
+
+        # Extract with page-level granularity
+        exhibits_with_pages = []
+        total_scanned = 0
+
+        for ex in f_exhibits:
+            start = ex["start_page"] - 1  # 0-indexed
+            end = min(ex["end_page"], ex["start_page"] + max_pages_per_exhibit - 1)
+
+            exhibit_context = {
+                "exhibit_id": ex["exhibit_id"],
+                "exhibit_start": ex["start_page"],
+                "exhibit_end": end,
+                "total_pages": end - ex["start_page"] + 1,
+            }
+
+            pages: List[PageText] = []
+            images: List[bytes] = []
+            scanned_page_nums: List[int] = []
+
+            for page_idx in range(start, min(end, len(doc))):
+                page = doc[page_idx]
+                absolute_page = page_idx + 1
+                relative_page = absolute_page - ex["start_page"] + 1
+
+                if is_scanned_page(page):
+                    if len(images) < MAX_IMAGES_PER_EXHIBIT:
+                        images.append(render_page_to_image(page))
+                        scanned_page_nums.append(absolute_page)
+                        total_scanned += 1
+                    else:
+                        logger.warning(
+                            f"Exhibit {ex['exhibit_id']} truncated at "
+                            f"{MAX_IMAGES_PER_EXHIBIT} scanned pages"
+                        )
+                        break
+                else:
+                    page_text = page.get_text()
+                    if page_text.strip():
+                        # Create PageText and detect header
+                        page_obj = PageText(
+                            absolute_page=absolute_page,
+                            relative_page=relative_page,
+                            exhibit_id=ex["exhibit_id"],
+                            text=page_text,
+                        )
+                        # Detect header info
+                        header_result = header_detector.detect(page_obj, exhibit_context)
+                        if header_result.confidence > 0.3:
+                            page_obj.header_info = {
+                                "source_type": header_result.source_type,
+                                "confidence": header_result.confidence,
+                                "raw_match": header_result.raw_match,
+                            }
+                        pages.append(page_obj)
+
+            if pages or images:
+                combined_text = build_combined_text(pages) if pages else ""
+
+                exhibit_data = {
+                    "exhibit_id": ex["exhibit_id"],
+                    "pages": pages,
+                    "combined_text": combined_text,
+                    "page_range": (ex["start_page"], end),
+                    "images": images,
+                    "scanned_page_nums": scanned_page_nums,
+                    "has_scanned_pages": len(images) > 0,
+                }
+                exhibits_with_pages.append(exhibit_data)
+
+                if images:
+                    logger.info(
+                        f"Exhibit {ex['exhibit_id']}: {len(pages)} text pages, "
+                        f"{len(images)} scanned pages"
+                    )
+                else:
+                    logger.debug(
+                        f"Exhibit {ex['exhibit_id']}: {len(pages)} text pages"
+                    )
+
+        doc.close()
+
+        if total_scanned > 0:
+            logger.info(
+                f"Extracted {len(exhibits_with_pages)} F-exhibits with pages "
+                f"({total_scanned} scanned pages requiring vision)"
+            )
+        else:
+            logger.info(
+                f"Extracted {len(exhibits_with_pages)} F-exhibits with pages (all text)"
+            )
+
+        return exhibits_with_pages
+
+    except Exception as e:
+        logger.error(f"Failed to extract F-exhibits with pages from {pdf_path}: {e}")
+        return []
