@@ -175,7 +175,7 @@ class TestParallelExtractor:
         async def mock_text_extract(text, exhibit_id):
             return [{"date": "2024-01-01", "visit_type": "office_visit", "occurrence_treatment": {}}]
 
-        async def mock_recovery(entries, images, exhibit_id, page_nums):
+        async def mock_recovery(entries, images, exhibit_id, page_nums, exhibit_context=None):
             # Simulate enriching sparse entries
             for entry in entries:
                 entry["occurrence_treatment"] = {"chief_complaint": "Recovered content"}

@@ -129,7 +129,7 @@ class TestRecoveryHandler:
     @pytest.mark.asyncio
     async def test_recover_sparse_entries(self):
         """Test that sparse entries get enriched via vision."""
-        async def mock_vision_extract(images, exhibit_id, page_nums):
+        async def mock_vision_extract(images, exhibit_id, page_nums, exhibit_context=None):
             return [
                 {
                     "date": "2024-01-01",
@@ -153,7 +153,7 @@ class TestRecoveryHandler:
     @pytest.mark.asyncio
     async def test_adds_new_entries_from_vision(self):
         """Test that new entries discovered by vision are added."""
-        async def mock_vision_extract(images, exhibit_id, page_nums):
+        async def mock_vision_extract(images, exhibit_id, page_nums, exhibit_context=None):
             return [
                 {
                     "date": "2024-01-02",  # Different date - new entry
@@ -176,7 +176,7 @@ class TestRecoveryHandler:
     @pytest.mark.asyncio
     async def test_no_recovery_without_images(self):
         """Test that no recovery happens without images."""
-        async def mock_vision_extract(images, exhibit_id, page_nums):
+        async def mock_vision_extract(images, exhibit_id, page_nums, exhibit_context=None):
             raise AssertionError("Should not be called")
 
         handler = RecoveryHandler(mock_vision_extract)

@@ -84,7 +84,7 @@ class ParallelExtractor:
         text_extract_fn: Optional[Callable[[str, str], Awaitable[List[Dict[str, Any]]]]] = None,
         vision_extract_fn: Optional[Callable[[List[bytes], str, List[int]], Awaitable[List[Dict[str, Any]]]]] = None,
         max_concurrent: int = 5,
-        recovery_fn: Optional[Callable[[List[Dict], List[bytes], str, List[int]], Awaitable[List[Dict]]]] = None,
+        recovery_fn: Optional[Callable[[List[Dict], List[bytes], str, List[int], Optional[Dict]], Awaitable[List[Dict]]]] = None,
         ere_format: Optional[str] = None,
         text_extractor: Optional[Any] = None,
         vision_extractor: Optional[Any] = None,
@@ -182,7 +182,8 @@ class ParallelExtractor:
         page_range = exhibit.get("page_range", (0, 0))
         exhibit_start = page_range[0] if isinstance(page_range, tuple) and len(page_range) >= 1 else 0
         exhibit_end = page_range[1] if isinstance(page_range, tuple) and len(page_range) >= 2 else 0
-        total_pages = exhibit_end - exhibit_start + 1 if exhibit_start else 0
+        # Calculate total_pages: 0 if exhibit_end is 0 (default/unknown), otherwise calculate correctly
+        total_pages = exhibit_end - exhibit_start + 1 if exhibit_end > 0 else 0
 
         return {
             "exhibit_id": exhibit.get("exhibit_id", ""),
@@ -287,7 +288,7 @@ class ParallelExtractor:
                 # Skip recovery for PROCESSED format (100% searchable, no scanned pages)
                 if images and self._recovery_fn and self._ere_format != PROCESSED:
                     entries = await self._recovery_fn(
-                        entries, images, exhibit_id, scanned_page_nums
+                        entries, images, exhibit_id, scanned_page_nums, exhibit_context
                     )
                 elif self._ere_format == PROCESSED and images:
                     logger.debug(f"Skipping recovery for {exhibit_id} (PROCESSED format)")

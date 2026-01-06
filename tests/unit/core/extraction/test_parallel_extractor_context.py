@@ -174,8 +174,8 @@ class TestParallelExtractorContext:
         assert context["exhibit_id"] == "1F"
         assert context["exhibit_start"] == 0
         assert context["exhibit_end"] == 10
-        # total_pages is 0 when exhibit_start is 0 (falsy)
-        assert context["total_pages"] == 0
+        # total_pages should be 11 (10 - 0 + 1), not 0
+        assert context["total_pages"] == 11
 
     @pytest.mark.asyncio
     async def test_function_based_extraction_still_works(self):

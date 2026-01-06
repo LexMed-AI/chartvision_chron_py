@@ -130,8 +130,8 @@ class ChronologyEngine:
                 recovery_fn = self.recovery_handler.recover_sparse_entries
 
             self._parallel_extractor = ParallelExtractor(
-                text_extract_fn=self.text_extractor.extract if self.text_extractor else None,
-                vision_extract_fn=self.vision_extractor.extract if self.vision_extractor else None,
+                text_extractor=self.text_extractor,
+                vision_extractor=self.vision_extractor,
                 max_concurrent=self._max_concurrent,
                 recovery_fn=recovery_fn,
                 ere_format=self._ere_format,

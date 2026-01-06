@@ -31,16 +31,28 @@ async def extract_chronology(
         List of chronology entry dictionaries
     """
     try:
-        from app.core.extraction.utils import extract_f_exhibits_from_pdf
+        from app.core.extraction.pdf_exhibit_extractor import extract_f_exhibits_with_pages
         from app.core.extraction import ChronologyEngine
         from app.adapters.llm import BedrockAdapter
 
-        f_exhibits = extract_f_exhibits_from_pdf(
+        raw_exhibits = extract_f_exhibits_with_pages(
             file_path,
             max_exhibits=MAX_EXHIBITS_PER_JOB,
             max_pages_per_exhibit=MAX_PAGES_PER_EXHIBIT,
         )
-        logger.info(f"Extracted {len(f_exhibits)} F-section exhibits")
+        # Adapt format: combined_text -> text for engine compatibility
+        f_exhibits = []
+        for ex in raw_exhibits:
+            f_exhibits.append({
+                "exhibit_id": ex["exhibit_id"],
+                "text": ex.get("combined_text", ""),
+                "pages": ex.get("pages", []),
+                "images": ex.get("images", []),
+                "page_range": ex.get("page_range", (0, 0)),
+                "scanned_page_nums": ex.get("scanned_page_nums", []),
+                "has_scanned_pages": ex.get("has_scanned_pages", False),
+            })
+        logger.info(f"Extracted {len(f_exhibits)} F-section exhibits (with pages)")
 
         if not f_exhibits:
             return []
@@ -81,19 +93,31 @@ async def extract_chronology_with_progress(
         List of chronology entry dictionaries
     """
     try:
-        from app.core.extraction.utils import extract_f_exhibits_from_pdf
+        from app.core.extraction.pdf_exhibit_extractor import extract_f_exhibits_with_pages
         from app.core.extraction import ChronologyEngine
         from app.adapters.llm import BedrockAdapter
 
         # Get ERE format from job for extraction routing
         ere_format = job.get("ere_format", UNKNOWN)
 
-        f_exhibits = extract_f_exhibits_from_pdf(
+        raw_exhibits = extract_f_exhibits_with_pages(
             file_path,
             max_exhibits=MAX_EXHIBITS_PER_JOB,
             max_pages_per_exhibit=MAX_PAGES_PER_EXHIBIT,
         )
-        logger.info(f"Extracted {len(f_exhibits)} F-section exhibits (format: {ere_format})")
+        # Adapt format: combined_text -> text for engine compatibility
+        f_exhibits = []
+        for ex in raw_exhibits:
+            f_exhibits.append({
+                "exhibit_id": ex["exhibit_id"],
+                "text": ex.get("combined_text", ""),
+                "pages": ex.get("pages", []),
+                "images": ex.get("images", []),
+                "page_range": ex.get("page_range", (0, 0)),
+                "scanned_page_nums": ex.get("scanned_page_nums", []),
+                "has_scanned_pages": ex.get("has_scanned_pages", False),
+            })
+        logger.info(f"Extracted {len(f_exhibits)} F-section exhibits with pages (format: {ere_format})")
 
         if not f_exhibits:
             return []

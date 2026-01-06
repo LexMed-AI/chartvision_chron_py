@@ -8,7 +8,7 @@ Handles:
 - Entry merging and deduplication
 """
 import logging
-from typing import Any, Dict, List, Optional, Callable, Awaitable
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -106,20 +106,20 @@ class RecoveryHandler:
     Usage:
         handler = RecoveryHandler(vision_extractor.extract)
         enriched = await handler.recover_sparse_entries(
-            entries, images, exhibit_id, page_nums
+            entries, images, exhibit_id, page_nums, exhibit_context
         )
     """
 
     def __init__(
         self,
-        vision_extract_fn: Callable[[List[bytes], str, List[int]], Awaitable[List[Dict]]]
+        vision_extract_fn: Callable[[List[bytes], str, List[int], Optional[Dict]], Awaitable[List[Dict]]]
     ):
         """
         Initialize recovery handler.
 
         Args:
             vision_extract_fn: Async function that extracts entries from images.
-                              Signature: (images, exhibit_id, page_nums) -> entries
+                              Signature: (images, exhibit_id, page_nums, exhibit_context) -> entries
         """
         self._vision_extract = vision_extract_fn
 
@@ -129,6 +129,7 @@ class RecoveryHandler:
         images: List[bytes],
         exhibit_id: str,
         page_nums: List[int],
+        exhibit_context: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Attempt to enrich sparse entries using vision extraction.
@@ -145,6 +146,7 @@ class RecoveryHandler:
             images: Page images for vision retry
             exhibit_id: Exhibit identifier
             page_nums: Page numbers for citation
+            exhibit_context: Optional exhibit metadata for citation tracking
 
         Returns:
             Enriched entries list with sparse entries filled
@@ -162,7 +164,7 @@ class RecoveryHandler:
         )
 
         try:
-            vision_entries = await self._vision_extract(images, exhibit_id, page_nums)
+            vision_entries = await self._vision_extract(images, exhibit_id, page_nums, exhibit_context)
         except Exception as e:
             logger.warning(f"Vision retry failed for {exhibit_id}: {e}")
             return entries
