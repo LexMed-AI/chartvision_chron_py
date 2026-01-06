@@ -3,6 +3,7 @@
 Medical chronology and ChartVision data structures.
 """
 
+from app.core.models.citation import Citation
 from app.core.models.chartvision import (
     AdministrativeData,
     AllegedImpairment,
@@ -31,6 +32,8 @@ from app.core.models.entry import (
 )
 
 __all__ = [
+    # citation.py models
+    "Citation",
     # entry.py models
     "MedicalEvent",
     "DiagnosisType",

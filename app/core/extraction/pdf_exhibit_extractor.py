@@ -6,9 +6,30 @@ Extracts F-section medical exhibits from ERE PDF files using bookmarks.
 
 import logging
 import re
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class PageText:
+    """
+    Holds page content with metadata for citation tracking.
+
+    Attributes:
+        absolute_page: PDF page number (1-indexed)
+        relative_page: Page within exhibit
+        exhibit_id: Exhibit identifier (e.g., "25F")
+        text: Page text content
+        header_info: Optional detected header information
+    """
+
+    absolute_page: int
+    relative_page: int
+    exhibit_id: str
+    text: str
+    header_info: Optional[Dict[str, Any]] = None
 
 # Memory limits for image extraction
 from app.config.extraction_limits import MAX_IMAGES_PER_EXHIBIT
