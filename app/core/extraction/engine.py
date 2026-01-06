@@ -163,6 +163,20 @@ class ChronologyEngine:
             # Normalize exhibits to dict format
             normalized = self._normalize_exhibits(exhibits)
 
+            # Auto-initialize citation resolver from exhibit data if not set
+            if not self._citation_resolver:
+                exhibit_ranges = [
+                    {
+                        "exhibit_id": ex.get("exhibit_id", ""),
+                        "start_page": ex.get("page_range", (0, 0))[0] if isinstance(ex.get("page_range"), tuple) else 0,
+                        "end_page": ex.get("page_range", (0, 0))[1] if isinstance(ex.get("page_range"), tuple) else 0,
+                    }
+                    for ex in normalized
+                    if ex.get("page_range") and isinstance(ex.get("page_range"), tuple)
+                ]
+                if exhibit_ranges:
+                    self._citation_resolver = CitationResolver(exhibit_ranges)
+
             # Use parallel extraction if enabled and available
             if self._enable_parallel and self.parallel_extractor:
                 all_entries = await self._generate_parallel(normalized)
