@@ -8,6 +8,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from app.core.models.citation import Citation
+
 
 @dataclass
 class MedicalEvent:
@@ -33,6 +35,9 @@ class MedicalEvent:
     exhibit_source: Optional[str] = None  # Added for compatibility
     page_number: Optional[int] = None     # Added for compatibility
     metadata: Dict[str, Any] = field(default_factory=dict)  # Added for extensibility
+
+    # NEW: Unified citation object
+    citation: Optional[Citation] = None
 
 
 class DiagnosisType(Enum):
@@ -139,6 +144,9 @@ class ChronologyEvent:
     confidence: float = 1.0
     hyperlinks: List[str] = field(default_factory=list)
     related_events: List[str] = field(default_factory=list)
+
+    # NEW: Unified citation object
+    citation: Optional[Citation] = None
 
 
 @dataclass

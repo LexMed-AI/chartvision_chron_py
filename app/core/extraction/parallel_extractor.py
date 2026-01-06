@@ -62,10 +62,18 @@ class ParallelExtractor:
     1. Within-exhibit: text + vision extraction run concurrently via asyncio.gather
     2. Across-exhibits: multiple exhibits processed with semaphore-controlled concurrency
 
-    Usage:
+    Usage (function-based - legacy):
         extractor = ParallelExtractor(
             text_extract_fn=text_extractor.extract,
             vision_extract_fn=vision_extractor.extract,
+            max_concurrent=5,
+        )
+        result = await extractor.extract_exhibits(exhibits)
+
+    Usage (object-based - preferred for citation context):
+        extractor = ParallelExtractor(
+            text_extractor=text_extractor,
+            vision_extractor=vision_extractor,
             max_concurrent=5,
         )
         result = await extractor.extract_exhibits(exhibits)
@@ -73,24 +81,31 @@ class ParallelExtractor:
 
     def __init__(
         self,
-        text_extract_fn: Callable[[str, str], Awaitable[List[Dict[str, Any]]]],
+        text_extract_fn: Optional[Callable[[str, str], Awaitable[List[Dict[str, Any]]]]] = None,
         vision_extract_fn: Optional[Callable[[List[bytes], str, List[int]], Awaitable[List[Dict[str, Any]]]]] = None,
         max_concurrent: int = 5,
         recovery_fn: Optional[Callable[[List[Dict], List[bytes], str, List[int]], Awaitable[List[Dict]]]] = None,
         ere_format: Optional[str] = None,
+        text_extractor: Optional[Any] = None,
+        vision_extractor: Optional[Any] = None,
     ):
         """
         Initialize parallel extractor.
 
         Args:
-            text_extract_fn: Async function for text extraction (text, exhibit_id) -> entries
-            vision_extract_fn: Optional async function for vision extraction (images, exhibit_id, page_nums) -> entries
+            text_extract_fn: Async function for text extraction (text, exhibit_id) -> entries (legacy)
+            vision_extract_fn: Optional async function for vision extraction (legacy)
             max_concurrent: Maximum concurrent exhibit extractions
             recovery_fn: Optional recovery handler for sparse entries
             ere_format: ERE format type for extraction routing optimization
+            text_extractor: TextExtractor object with .extract() method (preferred)
+            vision_extractor: VisionExtractor object with .extract() method (preferred)
         """
+        # Support both function-based (legacy) and object-based (preferred) approaches
         self._text_extract = text_extract_fn
         self._vision_extract = vision_extract_fn
+        self._text_extractor = text_extractor
+        self._vision_extractor = vision_extractor
         self._recovery_fn = recovery_fn
         self._max_concurrent = max_concurrent
         self._semaphore: Optional[asyncio.Semaphore] = None
@@ -155,6 +170,40 @@ class ParallelExtractor:
 
         return result
 
+    def _build_exhibit_context(self, exhibit: Dict[str, Any]) -> Dict[str, Any]:
+        """Build exhibit context for citation tracking.
+
+        Args:
+            exhibit: Exhibit dict with exhibit_id, page_range, etc.
+
+        Returns:
+            Context dict with exhibit_id, exhibit_start, exhibit_end, total_pages
+        """
+        page_range = exhibit.get("page_range", (0, 0))
+        exhibit_start = page_range[0] if isinstance(page_range, tuple) and len(page_range) >= 1 else 0
+        exhibit_end = page_range[1] if isinstance(page_range, tuple) and len(page_range) >= 2 else 0
+        total_pages = exhibit_end - exhibit_start + 1 if exhibit_start else 0
+
+        return {
+            "exhibit_id": exhibit.get("exhibit_id", ""),
+            "exhibit_start": exhibit_start,
+            "exhibit_end": exhibit_end,
+            "total_pages": total_pages,
+        }
+
+    async def _process_exhibit(
+        self,
+        exhibit: Dict[str, Any],
+    ) -> ExhibitExtractionResult:
+        """Process a single exhibit - internal method for testing.
+
+        This is an alias for _extract_single_exhibit, exposed for testing purposes.
+        """
+        # Ensure semaphore exists
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self._max_concurrent)
+        return await self._extract_single_exhibit(exhibit)
+
     async def _extract_single_exhibit(
         self,
         exhibit: Dict[str, Any],
@@ -163,17 +212,22 @@ class ParallelExtractor:
         Extract entries from a single exhibit with text+vision parallelism.
 
         Uses semaphore to control overall concurrency.
+        Passes exhibit context to extractors for citation tracking.
         """
         async with self._semaphore:
             exhibit_id = exhibit.get("exhibit_id", "unknown")
             text = exhibit.get("text", "")
             images = exhibit.get("images", [])
+            pages = exhibit.get("pages", [])
             page_range = exhibit.get("page_range", (0, 0))
             scanned_page_nums = exhibit.get("scanned_page_nums", [])
 
             # Derive page numbers from page_range if scanned_page_nums not provided
             if not scanned_page_nums and isinstance(page_range, tuple) and len(page_range) == 2:
                 scanned_page_nums = list(range(page_range[0], page_range[1] + 1))
+
+            # Build exhibit context for citation tracking
+            exhibit_context = self._build_exhibit_context(exhibit)
 
             result = ExhibitExtractionResult(exhibit_id=exhibit_id)
 
@@ -186,18 +240,22 @@ class ParallelExtractor:
 
                 # Prepare text extraction task (skip for COURT_TRANSCRIPT - images only)
                 if text.strip() and not skip_text:
-                    extraction_tasks.append(
-                        ("text", self._text_extract(text, exhibit_id))
+                    text_task = self._create_text_extraction_task(
+                        text, exhibit_id, pages, exhibit_context
                     )
+                    if text_task:
+                        extraction_tasks.append(("text", text_task))
                 elif skip_text:
                     logger.debug(f"Skipping text extraction for {exhibit_id} (COURT_TRANSCRIPT format)")
 
                 # Prepare vision extraction task (skip for PROCESSED - 100% searchable)
-                if images and self._vision_extract and not skip_vision:
-                    result.used_vision = True
-                    extraction_tasks.append(
-                        ("vision", self._vision_extract(images, exhibit_id, scanned_page_nums))
+                if images and not skip_vision:
+                    vision_task = self._create_vision_extraction_task(
+                        images, exhibit_id, scanned_page_nums, exhibit_context
                     )
+                    if vision_task:
+                        result.used_vision = True
+                        extraction_tasks.append(("vision", vision_task))
                 elif skip_vision and images:
                     logger.debug(f"Skipping vision extraction for {exhibit_id} (PROCESSED format)")
 
@@ -242,6 +300,48 @@ class ParallelExtractor:
                 logger.error(f"Failed to extract exhibit {exhibit_id}: {e}")
 
             return result
+
+    def _create_text_extraction_task(
+        self,
+        text: str,
+        exhibit_id: str,
+        pages: List[Any],
+        exhibit_context: Dict[str, Any],
+    ) -> Optional[Awaitable[List[Dict[str, Any]]]]:
+        """Create text extraction task using object-based or function-based extractor."""
+        # Prefer object-based extractor (supports exhibit_context)
+        if self._text_extractor is not None:
+            return self._text_extractor.extract(
+                text=text,
+                exhibit_id=exhibit_id,
+                pages=pages if pages else None,
+                exhibit_context=exhibit_context,
+            )
+        # Fall back to function-based extractor (legacy)
+        if self._text_extract is not None:
+            return self._text_extract(text, exhibit_id)
+        return None
+
+    def _create_vision_extraction_task(
+        self,
+        images: List[bytes],
+        exhibit_id: str,
+        page_nums: List[int],
+        exhibit_context: Dict[str, Any],
+    ) -> Optional[Awaitable[List[Dict[str, Any]]]]:
+        """Create vision extraction task using object-based or function-based extractor."""
+        # Prefer object-based extractor (supports exhibit_context)
+        if self._vision_extractor is not None:
+            return self._vision_extractor.extract(
+                images=images,
+                exhibit_id=exhibit_id,
+                page_nums=page_nums,
+                exhibit_context=exhibit_context,
+            )
+        # Fall back to function-based extractor (legacy)
+        if self._vision_extract is not None:
+            return self._vision_extract(images, exhibit_id, page_nums)
+        return None
 
     async def extract_single(
         self,
