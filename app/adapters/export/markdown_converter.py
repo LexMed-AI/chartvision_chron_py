@@ -9,9 +9,11 @@ import os
 import re
 import subprocess
 import tempfile
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Union
 
 from app.adapters.export import styles
+from app.core.models.citation import Citation
 
 try:
     import markdown
@@ -409,3 +411,154 @@ class MarkdownToPDFConverter:
                 self.logger.error(f"Error converting {markdown_file}: {e}")
 
         return output_files
+
+
+def _get_citation_formatted(citation: Union[Citation, Dict[str, Any], None]) -> Optional[str]:
+    """Extract formatted citation string from Citation object or dict.
+
+    Args:
+        citation: Citation object, dict with 'formatted' key, or None
+
+    Returns:
+        Formatted citation string or None
+    """
+    if citation is None:
+        return None
+
+    if isinstance(citation, Citation):
+        return citation.format()
+
+    if isinstance(citation, dict) and "formatted" in citation:
+        return citation["formatted"]
+
+    return None
+
+
+def format_entry(entry: Dict[str, Any]) -> str:
+    """Format a chronology entry as markdown with optional citation.
+
+    Args:
+        entry: Dict containing chronology entry data with optional 'citation' key
+
+    Returns:
+        Markdown-formatted entry string
+    """
+    lines = []
+
+    # Date header
+    date = entry.get("date", "Unknown Date")
+    lines.append(f"### {date}")
+    lines.append("")
+
+    # Event type
+    event_type = entry.get("event_type")
+    if event_type:
+        lines.append(f"**{event_type}**")
+        lines.append("")
+
+    # Provider/Facility
+    provider = entry.get("provider")
+    facility = entry.get("facility")
+    if provider or facility:
+        provider_line_parts = []
+        if provider:
+            provider_line_parts.append(provider)
+        if facility:
+            provider_line_parts.append(facility)
+        lines.append(" - ".join(provider_line_parts))
+        lines.append("")
+
+    # Citation (source reference)
+    citation = entry.get("citation")
+    formatted_citation = _get_citation_formatted(citation)
+    if formatted_citation:
+        lines.append(f"**Source:** {formatted_citation}")
+        lines.append("")
+
+    # Description
+    description = entry.get("description", "")
+    if description:
+        lines.append(description)
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def format_footer(entries: List[Dict[str, Any]]) -> str:
+    """Generate a sources footer aggregating citations by exhibit.
+
+    Args:
+        entries: List of chronology entry dicts, each with optional 'citation' key
+
+    Returns:
+        Markdown-formatted sources section
+    """
+    # Aggregate sources by exhibit
+    exhibit_pages: Dict[str, List[int]] = defaultdict(list)
+    generic_pages: List[int] = []
+
+    for entry in entries:
+        citation = entry.get("citation")
+        if citation is None:
+            continue
+
+        # Handle Citation object or dict
+        if isinstance(citation, Citation):
+            exhibit_id = citation.exhibit_id
+            abs_page = citation.absolute_page
+        elif isinstance(citation, dict):
+            exhibit_id = citation.get("exhibit_id")
+            abs_page = citation.get("absolute_page")
+        else:
+            continue
+
+        if abs_page is None:
+            continue
+
+        if exhibit_id:
+            exhibit_pages[exhibit_id].append(abs_page)
+        else:
+            generic_pages.append(abs_page)
+
+    # Build footer if we have any sources
+    if not exhibit_pages and not generic_pages:
+        return ""
+
+    lines = ["## Sources", ""]
+
+    # Sort exhibits naturally (1F, 2F, ..., 10F, 11F)
+    def exhibit_sort_key(exhibit_id: str) -> tuple:
+        """Extract numeric portion for natural sorting."""
+        match = re.match(r"(\d+)([A-Z]*)", exhibit_id)
+        if match:
+            return (int(match.group(1)), match.group(2))
+        return (999, exhibit_id)
+
+    for exhibit_id in sorted(exhibit_pages.keys(), key=exhibit_sort_key):
+        pages = sorted(set(exhibit_pages[exhibit_id]))
+        page_count = len(pages)
+        min_page = min(pages)
+        max_page = max(pages)
+
+        if min_page == max_page:
+            page_range = f"p.{min_page}"
+        else:
+            page_range = f"pp.{min_page}-{max_page}"
+
+        lines.append(f"- **Exhibit {exhibit_id}**: {page_count} citation(s), {page_range}")
+
+    if generic_pages:
+        pages = sorted(set(generic_pages))
+        page_count = len(pages)
+        min_page = min(pages)
+        max_page = max(pages)
+
+        if min_page == max_page:
+            page_range = f"p.{min_page}"
+        else:
+            page_range = f"pp.{min_page}-{max_page}"
+
+        lines.append(f"- **Other Sources**: {page_count} citation(s), {page_range}")
+
+    lines.append("")
+    return "\n".join(lines)

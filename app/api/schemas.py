@@ -122,6 +122,40 @@ class ErrorResponse(BaseModel):
     timestamp: datetime
 
 
+class CitationSchema(BaseModel):
+    """Citation data in API responses.
+
+    Represents a source reference linking chronology entries to their
+    original document pages.
+    """
+
+    exhibit_id: Optional[str] = Field(None, description="Exhibit identifier (e.g., '25F')")
+    relative_page: Optional[int] = Field(None, description="Page within exhibit (1-indexed)")
+    absolute_page: int = Field(..., description="Absolute PDF page number (1-indexed)")
+    total_pages: Optional[int] = Field(None, description="Total pages in exhibit")
+    end_relative_page: Optional[int] = Field(None, description="End page within exhibit (for ranges)")
+    end_absolute_page: Optional[int] = Field(None, description="End absolute page (for ranges)")
+    is_estimated: bool = Field(False, description="Whether page number is estimated")
+    confidence: float = Field(1.0, ge=0.0, le=1.0, description="Citation confidence score")
+    formatted: str = Field(..., description="Canonical formatted citation string")
+
+
+class ChronologyEntrySchema(BaseModel):
+    """Schema for a single chronology entry in API responses.
+
+    Represents a medical event extracted from a document with
+    optional citation tracking.
+    """
+
+    date: Optional[str] = Field(None, description="Event date (MM/DD/YYYY)")
+    provider: Optional[str] = Field(None, description="Healthcare provider name")
+    facility: Optional[str] = Field(None, description="Medical facility name")
+    event_type: Optional[str] = Field(None, description="Type of medical event")
+    description: str = Field(..., description="Event description")
+    exhibit_id: Optional[str] = Field(None, description="Source exhibit identifier")
+    citation: Optional[CitationSchema] = Field(None, description="Source citation with page reference")
+
+
 __all__ = [
     "EREProcessRequest",
     "EREProcessResponse",
@@ -131,4 +165,6 @@ __all__ = [
     "DDEExtractionResult",
     "HealthResponse",
     "ErrorResponse",
+    "CitationSchema",
+    "ChronologyEntrySchema",
 ]
