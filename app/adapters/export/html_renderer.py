@@ -23,6 +23,55 @@ def escape(text: str) -> str:
     return html_lib.escape(str(text))
 
 
+def format_source_citation(entry: Dict[str, Any]) -> str:
+    """Format source citation from entry, using citation object if available.
+
+    Matches the format used by ChronologyEntry.formatted_source for consistency
+    between markdown and PDF outputs.
+
+    Args:
+        entry: Chronology entry dict with optional 'citation' key
+
+    Returns:
+        Formatted source citation string (e.g., "10F@3 (p.245)")
+    """
+    citation = entry.get("citation")
+
+    if citation:
+        # Handle Citation dataclass (has format() method)
+        if hasattr(citation, "format"):
+            return citation.format()
+
+        # Handle dict (backwards compatibility or serialized data)
+        exhibit_id = citation.get("exhibit_id", entry.get("exhibit_reference", ""))
+        abs_page = citation.get("absolute_page")
+        rel_page = citation.get("relative_page")
+        end_rel_page = citation.get("end_relative_page")
+        end_abs_page = citation.get("end_absolute_page")
+
+        if exhibit_id and rel_page:
+            if end_rel_page and end_rel_page != rel_page:
+                # Multi-page range
+                return f"{exhibit_id}@{rel_page}-{end_rel_page} (pp.{abs_page}-{end_abs_page})"
+            elif abs_page:
+                return f"{exhibit_id}@{rel_page} (p.{abs_page})"
+            else:
+                return f"{exhibit_id}@{rel_page}"
+        elif exhibit_id and abs_page:
+            return f"{exhibit_id} (p.{abs_page})"
+        elif abs_page:
+            return f"p.{abs_page}"
+
+    # Fallback to exhibit_reference
+    if entry.get("exhibit_reference"):
+        source = f"Ex. {entry['exhibit_reference']}"
+        if entry.get("page_range"):
+            source += f" pp.{entry['page_range']}"
+        return source
+
+    return "N/A"
+
+
 def build_occurrence_summary(occ: Dict[str, Any], visit_type: Optional[str]) -> str:
     """
     Build occurrence/treatment summary for table cell based on visit type.
@@ -183,11 +232,7 @@ def render_chronology_table(entries: List[Dict[str, Any]]) -> str:
         facility = escape(entry.get("facility", "N/A"))
         visit_type = (entry.get("visit_type") or "N/A").replace("_", " ")
 
-        source = "N/A"
-        if entry.get("exhibit_reference"):
-            source = f"Ex. {entry['exhibit_reference']}"
-            if entry.get("page_range"):
-                source += f" pp.{entry['page_range']}"
+        source = format_source_citation(entry)
 
         occ = entry.get("occurrence_treatment", {})
         occ_summary = build_occurrence_summary(occ, entry.get("visit_type"))
