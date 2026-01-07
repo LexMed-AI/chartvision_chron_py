@@ -725,10 +725,24 @@
           const provider = (entry.provider || 'Unknown').replace(/</g, '&lt;');
           const facility = (entry.facility || 'N/A').replace(/</g, '&lt;');
           const visitType = entry.visit_type ? entry.visit_type.replace(/_/g, ' ') : 'N/A';
-          // Format source citation: Ex. 8F@430 (exhibit + page within exhibit)
-          // exhibit_reference already contains the exhibit page (e.g., "8F@430")
-          // page_range is the PDF page which we don't need to display
-          const source = entry.exhibit_reference ? `Ex. ${entry.exhibit_reference}` : 'N/A';
+          // Format source citation with page-specific info if available
+          let source = 'N/A';
+          if (entry.citation) {
+            // Use citation object for page-specific source
+            const cit = entry.citation;
+            if (cit.formatted) {
+              source = cit.formatted;
+            } else if (cit.exhibit_id && cit.relative_page) {
+              source = `${cit.exhibit_id}@${cit.relative_page} (p.${cit.absolute_page})`;
+            } else if (cit.exhibit_id && cit.absolute_page) {
+              source = `${cit.exhibit_id} (p.${cit.absolute_page})`;
+            } else if (cit.absolute_page) {
+              source = `p.${cit.absolute_page}`;
+            }
+          } else if (entry.exhibit_reference) {
+            // Fallback to exhibit_reference
+            source = `Ex. ${entry.exhibit_reference}`;
+          }
 
           // Build occurrence/treatment summary with HTML formatting
           const occ = entry.occurrence_treatment || {};

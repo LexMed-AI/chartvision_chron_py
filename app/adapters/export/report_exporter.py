@@ -93,7 +93,12 @@ class ReportExporter:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         """
-        Export markdown to PDF via Gotenberg.
+        Export markdown to PDF with automatic fallback.
+
+        Uses MarkdownToPDFConverter which tries:
+        1. Gotenberg (if Docker running)
+        2. WeasyPrint (if installed)
+        3. wkhtmltopdf (if installed)
 
         Args:
             markdown_content: Markdown content to convert
@@ -102,12 +107,8 @@ class ReportExporter:
             metadata: Optional metadata (title, patient_name, etc.)
 
         Returns:
-            Path to PDF file, or None if Gotenberg unavailable
+            Path to PDF file, or None if no PDF backend available
         """
-        if not self.gotenberg_available():
-            logger.warning("Gotenberg not available, skipping PDF generation")
-            return None
-
         # Create job output directory
         job_dir = self.output_dir / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
@@ -117,13 +118,12 @@ class ReportExporter:
         pdf_path = str(job_dir / pdf_filename)
 
         try:
-            # Convert markdown to HTML
-            html_content = self._markdown_to_html(markdown_content, metadata)
-
-            # Use Gotenberg HTML endpoint
-            self.gotenberg._html_to_pdf_sync(
-                html=html_content,
+            # Use MarkdownToPDFConverter which has fallback chain
+            converter = MarkdownToPDFConverter()
+            converter.convert_chartvision_to_pdf(
+                markdown_content=markdown_content,
                 output_path=pdf_path,
+                metadata=metadata,
             )
             logger.info(f"Generated PDF: {pdf_path}")
             return pdf_path
@@ -170,6 +170,8 @@ class ReportExporter:
         """
         Export PDF directly from job results using HTML generation.
 
+        Uses fallback chain: Gotenberg → WeasyPrint → wkhtmltopdf
+
         Args:
             results: Job results containing dde_extraction and entries
             job_id: Job identifier for filename
@@ -177,12 +179,8 @@ class ReportExporter:
             title: Document title
 
         Returns:
-            Path to PDF file, or None if Gotenberg unavailable
+            Path to PDF file, or None if no PDF backend available
         """
-        if not self.gotenberg_available():
-            logger.warning("Gotenberg not available, skipping PDF generation")
-            return None
-
         # Create job output directory
         job_dir = self.output_dir / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
@@ -197,18 +195,9 @@ class ReportExporter:
             # Generate HTML matching UI styles
             html_content = render_chronology_html(results, title)
 
-            # Use Gotenberg HTML endpoint
-            self.gotenberg._html_to_pdf_sync(
-                html=html_content,
-                output_path=pdf_path,
-                options={
-                    "margin_top": "0.5",
-                    "margin_bottom": "0.5",
-                    "margin_left": "0.5",
-                    "margin_right": "0.5",
-                    "print_background": "true",
-                }
-            )
+            # Use converter with fallback chain
+            converter = MarkdownToPDFConverter()
+            converter._html_to_pdf(html_content, pdf_path)
             logger.info(f"Generated PDF from results: {pdf_path}")
             return pdf_path
 

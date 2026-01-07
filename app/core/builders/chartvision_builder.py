@@ -186,7 +186,8 @@ class ChartVisionBuilder:
                 provider=entry.get("provider", "Unknown"),
                 facility=entry.get("facility", "Unknown"),
                 occurrence=entry.get("occurrence", ""),
-                source=entry.get("exhibit_citation", ""),
+                source=entry.get("exhibit_citation", "") or entry.get("exhibit_reference", ""),
+                citation=entry.get("citation"),
             )
 
         return self
@@ -213,8 +214,19 @@ class ChartVisionBuilder:
         occurrence: str,
         source: str,
         page_number: Optional[int] = None,
+        citation: Optional[Any] = None,
     ) -> "ChartVisionBuilder":
-        """Add chronology entry (Section 12)."""
+        """Add chronology entry (Section 12).
+
+        Args:
+            date: Date of service
+            provider: Provider name/specialty
+            facility: Facility name
+            occurrence: Treatment/occurrence description
+            source: Exhibit ID (e.g., "10F")
+            page_number: Optional page number within exhibit
+            citation: Optional Citation object or dict with page info
+        """
         self._chronology.append(
             ChronologyEntry(
                 date=to_datetime(date),
@@ -223,6 +235,7 @@ class ChartVisionBuilder:
                 occurrence_treatment=occurrence,
                 source=source,
                 page_number=page_number,
+                citation=citation,
             )
         )
         return self
@@ -384,6 +397,7 @@ class ChartVisionBuilder:
                 facility=entry.get("facility", "Unknown"),
                 occurrence=occurrence,
                 source=source,
+                citation=entry.get("citation"),
             )
 
         return self

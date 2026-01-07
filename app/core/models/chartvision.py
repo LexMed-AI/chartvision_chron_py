@@ -7,7 +7,9 @@ All ChartVision components should import models from here.
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
+
+from app.core.models.citation import Citation
 
 
 @dataclass
@@ -114,8 +116,31 @@ class ChronologyEntry:
     provider_specialty: str
     facility: str
     occurrence_treatment: str
-    source: str
+    source: str  # Exhibit ID (e.g., "10F") - kept for backwards compatibility
     page_number: Optional[int] = None
+    citation: Optional[Union[Citation, Dict[str, Any]]] = None  # Full citation with page info
+
+    @property
+    def formatted_source(self) -> str:
+        """Get formatted source citation for display.
+
+        Returns page-specific citation if available, otherwise exhibit ID.
+        """
+        if self.citation:
+            if isinstance(self.citation, Citation):
+                return self.citation.format()
+            elif isinstance(self.citation, dict) and "formatted" in self.citation:
+                return self.citation["formatted"]
+            elif isinstance(self.citation, dict) and "absolute_page" in self.citation:
+                # Build formatted citation from dict
+                exhibit_id = self.citation.get("exhibit_id", self.source)
+                abs_page = self.citation.get("absolute_page")
+                rel_page = self.citation.get("relative_page")
+                if rel_page:
+                    return f"{exhibit_id}@{rel_page} (p.{abs_page})"
+                elif abs_page:
+                    return f"{exhibit_id} (p.{abs_page})"
+        return self.source
 
 
 @dataclass

@@ -339,8 +339,10 @@ class ChartVisionReportGenerator:
             date_str = entry.date.strftime("%m/%d/%Y") if entry.date else ""
             # Escape pipe characters in content (but not <br> tags)
             occurrence = entry.occurrence_treatment.replace("|", "\\|") if entry.occurrence_treatment else "—"
+            # Use formatted_source for page-specific citations when available
+            source_display = entry.formatted_source
             rows.append(
-                f"| {date_str} | {entry.provider_specialty} | {entry.facility} | {occurrence} | {entry.source} |"
+                f"| {date_str} | {entry.provider_specialty} | {entry.facility} | {occurrence} | {source_display} |"
             )
 
         table_rows = "\n".join(rows) if rows else "| N/A | No medical events documented | N/A | N/A | N/A |"
