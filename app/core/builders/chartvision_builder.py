@@ -359,6 +359,28 @@ class ChartVisionBuilder:
             if condition:
                 self.add_impairment(condition=condition, source=imp.get("source", ""))
 
+        # Parse chronology entries from DDE (Medical Consultant reviews, etc.)
+        dde_entries = fields.get("chronology_entries", [])
+        for entry in dde_entries:
+            entry_date = parse_date(entry.get("date"))
+            if not entry_date:
+                continue
+
+            # Build occurrence from event_type and findings
+            event_type = entry.get("event_type", "DDE Review")
+            findings = entry.get("findings", "")
+            occurrence = f"**{event_type}**"
+            if findings:
+                occurrence += f"<br>{findings}"
+
+            self.add_chronology_entry(
+                date=entry_date,
+                provider=entry.get("provider", "State Agency"),
+                facility=entry.get("facility", "DDE"),
+                occurrence=occurrence,
+                source="Section A - DDE",
+            )
+
         return self
 
     def from_llm_chronology_entries(
