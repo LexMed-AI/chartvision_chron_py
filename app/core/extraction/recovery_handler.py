@@ -52,7 +52,7 @@ def merge_entry_with_vision(
     Merge a sparse entry with a richer vision-extracted entry.
 
     Preserves the sparse entry's metadata but takes occurrence_treatment
-    from the vision entry if it has more content.
+    and citation from the vision entry if it has more content.
 
     Args:
         sparse_entry: Original entry with empty occurrence_treatment
@@ -67,6 +67,11 @@ def merge_entry_with_vision(
     if not is_sparse_entry(vision_entry):
         merged["occurrence_treatment"] = vision_occ
         merged["_enriched_via_vision"] = True
+
+        # Transfer citation from vision entry (more accurate page attribution)
+        if vision_entry.get("citation"):
+            merged["citation"] = vision_entry["citation"]
+            merged["citation_confidence"] = vision_entry.get("citation_confidence", 0.95)
 
     return merged
 

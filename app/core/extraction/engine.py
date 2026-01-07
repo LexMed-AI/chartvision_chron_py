@@ -240,11 +240,16 @@ class ChronologyEngine:
         return all_entries
 
     def _apply_citations(self, entries: List[Dict], exhibits: List[Dict]) -> None:
-        """Apply citation resolution to all entries."""
+        """Apply citation resolution to entries missing citations.
+
+        Only applies fallback citations to entries that don't already have
+        a citation from extractors (TextExtractor/VisionExtractor).
+        Preserves existing citations created by CitationMatcher or VisionExtractor.
+        """
         if not self._citation_resolver:
             return
 
-        # Build exhibit_id -> page_range mapping
+        # Build exhibit_id -> page_range mapping for fallback citations
         exhibit_pages = {}
         for ex in exhibits:
             exhibit_id = ex.get("exhibit_id", "unknown")
@@ -255,8 +260,12 @@ class ChronologyEngine:
             else:
                 exhibit_pages[exhibit_id] = scanned_pages or []
 
-        # Apply citations to entries
+        # Apply fallback citations only to entries without existing citation
         for entry in entries:
+            # Skip entries that already have a citation from extractors
+            if entry.get("citation"):
+                continue
+
             exhibit_id = entry.get("exhibit_reference", "")
             source_pages = exhibit_pages.get(exhibit_id, [])
             if source_pages:
