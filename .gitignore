@@ -16,6 +16,9 @@ results/
 .vscode/
 *.swp
 
+# macOS
+.DS_Store
+
 # Environment
 .env
 *.log
