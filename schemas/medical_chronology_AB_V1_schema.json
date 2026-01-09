@@ -1,0 +1,798 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lexmed.com/schemas/medical_chronology_AB_V1_schema.json",
+  "title": "Medical Chronology AB V1",
+  "description": "LexMed medical chronology schema for Social Security Disability cases. A/B testing MVP against AdamsBridge format.",
+  "type": "object",
+  "required": [
+    "case_metadata",
+    "administrative_data",
+    "file_details",
+    "detailed_chronology",
+    "submission_metadata"
+  ],
+  "properties": {
+    "case_metadata": {
+      "type": "object",
+      "description": "Core claimant identification and case information",
+      "required": ["claimant_name", "dob", "gender", "case_id"],
+      "properties": {
+        "claimant_name": {
+          "type": "string",
+          "description": "Full legal name of claimant"
+        },
+        "dob": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of birth (YYYY-MM-DD)"
+        },
+        "ssn_last_four": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}$",
+          "description": "Last four digits of SSN"
+        },
+        "gender": {
+          "type": "string",
+          "enum": ["Male", "Female"]
+        },
+        "case_id": {
+          "type": "string",
+          "description": "Internal case identifier"
+        },
+        "date_of_injury_disability": {
+          "type": ["string", "null"],
+          "format": "date",
+          "description": "Date of injury or disability onset if applicable"
+        }
+      }
+    },
+    "administrative_data": {
+      "type": "object",
+      "description": "SSA administrative dates and claim classification",
+      "required": ["claim_type", "alleged_onset_date"],
+      "properties": {
+        "alj_hearing_date": {
+          "type": ["string", "null"],
+          "format": "date",
+          "description": "Administrative Law Judge hearing date"
+        },
+        "claim_type": {
+          "type": "string",
+          "enum": ["DIB", "SSI", "CDB", "DAC"],
+          "description": "DIB=Disability Insurance Benefits, SSI=Supplemental Security Income, CDB=Childhood Disability Benefits, DAC=Disabled Adult Child"
+        },
+        "date_last_insured": {
+          "type": ["string", "null"],
+          "format": "date",
+          "description": "DLI - Date Last Insured for Title II claims"
+        },
+        "alleged_onset_date": {
+          "type": "string",
+          "format": "date",
+          "description": "AOD - Claimant's alleged disability onset date"
+        },
+        "protective_filing_date": {
+          "type": ["string", "null"],
+          "format": "date",
+          "description": "PFD - Date SSA received intent to file"
+        },
+        "reconsideration_denial": {
+          "type": ["string", "null"],
+          "format": "date",
+          "description": "Date of reconsideration level denial"
+        },
+        "initial_denial": {
+          "type": ["string", "null"],
+          "format": "date",
+          "description": "Date of initial level denial"
+        }
+      }
+    },
+    "file_details": {
+      "type": "array",
+      "description": "Source medical record files received",
+      "items": {
+        "type": "object",
+        "required": ["sequence", "file_name", "page_count"],
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Order in exhibit list"
+          },
+          "date": {
+            "type": ["string", "null"],
+            "format": "date",
+            "description": "Date file received or created"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "Original filename"
+          },
+          "page_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total pages in file"
+          }
+        }
+      }
+    },
+    "alleged_impairments": {
+      "type": "array",
+      "description": "Conditions alleged by claimant",
+      "items": {
+        "type": "object",
+        "required": ["condition", "source"],
+        "properties": {
+          "condition": {
+            "type": "string",
+            "description": "Impairment as stated by claimant"
+          },
+          "source": {
+            "type": "string",
+            "description": "Exhibit reference (e.g., Ex. 8E@2)"
+          }
+        }
+      }
+    },
+    "medically_determinable_impairments": {
+      "type": "array",
+      "description": "Diagnosed conditions with medical evidence",
+      "items": {
+        "type": "object",
+        "required": ["diagnosis", "first_documented", "source"],
+        "properties": {
+          "diagnosis": {
+            "type": "string",
+            "description": "Diagnosis name as documented"
+          },
+          "icd_code": {
+            "type": ["string", "null"],
+            "pattern": "^[A-Z][0-9]{2}(\\.[0-9A-Z]{1,4})?$",
+            "description": "ICD-10-CM code"
+          },
+          "first_documented": {
+            "type": "string",
+            "format": "date",
+            "description": "Earliest date diagnosis appears in record"
+          },
+          "source": {
+            "type": "string",
+            "description": "Exhibit reference for first documentation"
+          }
+        }
+      }
+    },
+    "patient_history": {
+      "type": "object",
+      "description": "Background medical and social history",
+      "properties": {
+        "prior_occupational_history": {
+          "type": ["string", "null"],
+          "description": "Work history narrative"
+        },
+        "past_medical_history": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Prior medical conditions"
+        },
+        "surgical_history": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Prior surgeries and procedures"
+        },
+        "social_history": {
+          "type": ["string", "null"],
+          "description": "Smoking, alcohol, living situation"
+        },
+        "allergies": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Medication and other allergies"
+        }
+      }
+    },
+    "diagnostic_testing": {
+      "type": "array",
+      "description": "Imaging, labs, and other diagnostic studies",
+      "items": {
+        "type": "object",
+        "required": ["date", "test_type", "results", "source"],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "test_type": {
+            "type": "string",
+            "description": "Name of test or imaging study"
+          },
+          "results": {
+            "type": "string",
+            "description": "Succinct findings summary"
+          },
+          "source": {
+            "type": "string",
+            "description": "Exhibit reference"
+          }
+        }
+      }
+    },
+    "current_medications": {
+      "type": "array",
+      "description": "Active medication list at time of review",
+      "items": {
+        "type": "object",
+        "required": ["medication", "source"],
+        "properties": {
+          "medication": {
+            "type": "string",
+            "description": "Drug name and dosage"
+          },
+          "indication": {
+            "type": ["string", "null"],
+            "description": "Condition being treated"
+          },
+          "source": {
+            "type": "string",
+            "description": "Exhibit reference"
+          }
+        }
+      }
+    },
+    "occupational_history": {
+      "type": "array",
+      "description": "Work history relevant to disability claim",
+      "items": {
+        "type": "object",
+        "required": ["position_title", "employment_period", "source"],
+        "properties": {
+          "position_title": {
+            "type": "string"
+          },
+          "employment_period": {
+            "type": "string",
+            "description": "Date range as string (e.g., 'April 2015-June 2023')"
+          },
+          "exertional_level": {
+            "type": ["string", "null"],
+            "enum": ["Sedentary", "Light", "Medium", "Heavy", "Very Heavy", null],
+            "description": "DOT exertional classification if known"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "functional_report": {
+      "type": "array",
+      "description": "SSA-3373 Adult Function Report data",
+      "items": {
+        "type": "object",
+        "required": ["activity_domain", "reported_limitation", "source"],
+        "properties": {
+          "activity_domain": {
+            "type": "string",
+            "description": "Category of daily activity (e.g., 'Activities of Daily Living', 'Social Functioning', 'Adaptation')"
+          },
+          "reported_limitation": {
+            "type": "string",
+            "description": "Claimant's stated limitation"
+          },
+          "specific_examples": {
+            "type": ["string", "null"],
+            "description": "Concrete examples provided"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "detailed_chronology": {
+      "type": "array",
+      "description": "Chronological medical record entries",
+      "items": {
+        "type": "object",
+        "required": ["date", "page_range", "entry_type", "formatted_content"],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date of encounter or report"
+          },
+          "provider": {
+            "type": ["string", "null"],
+            "description": "Treating provider name"
+          },
+          "credential": {
+            "type": ["string", "null"],
+            "enum": ["MD", "DO", "APRN", "NP", "PA", "PsyD", "PhD", "PT", "OT", "SLP", "DPM", "DC", "OD", "DMD", "DDS", "RN", "LPN", "LCSW", "LPC", "CT", null],
+            "description": "Provider credential/degree"
+          },
+          "specialty": {
+            "type": ["string", "null"],
+            "description": "Medical specialty (e.g., Neurology, Radiology, Gastroenterology, Pain Management)"
+          },
+          "facility": {
+            "type": ["string", "null"],
+            "description": "Healthcare facility name"
+          },
+          "department": {
+            "type": ["string", "null"],
+            "description": "Department or clinic within facility (e.g., Neurosurgery, Therapy Services)"
+          },
+          "page_range": {
+            "type": "string",
+            "description": "Exhibit and page reference (e.g., 'Ex. 8F@11-16' or '371-374')"
+          },
+          "entry_type": {
+            "type": "string",
+            "enum": [
+              "office_visit",
+              "imaging",
+              "lab_results",
+              "procedure",
+              "therapy_evaluation",
+              "psychological_evaluation",
+              "consultation",
+              "emergency_visit",
+              "hospitalization"
+            ],
+            "description": "Classification of medical record entry"
+          },
+          "encounter_data": {
+            "type": ["object", "null"],
+            "description": "Structured extraction from encounter. Null for MVP, populated progressively in future versions.",
+            "properties": {
+              "chief_complaint": {
+                "type": ["string", "null"],
+                "description": "Primary reason for visit"
+              },
+              "history_of_present_illness": {
+                "type": ["string", "null"],
+                "description": "HPI narrative"
+              },
+              "vitals": {
+                "type": ["object", "null"],
+                "description": "Vital signs recorded at encounter",
+                "properties": {
+                  "blood_pressure": {
+                    "type": ["string", "null"],
+                    "description": "BP reading (e.g., '134/76')"
+                  },
+                  "pulse": {
+                    "type": ["integer", "null"],
+                    "description": "Heart rate in bpm"
+                  },
+                  "respiratory_rate": {
+                    "type": ["integer", "null"],
+                    "description": "Breaths per minute"
+                  },
+                  "temperature": {
+                    "type": ["number", "null"],
+                    "description": "Temperature in Fahrenheit"
+                  },
+                  "weight": {
+                    "type": ["string", "null"],
+                    "description": "Weight with unit (e.g., '135 lbs')"
+                  },
+                  "height": {
+                    "type": ["string", "null"],
+                    "description": "Height with unit (e.g., '5\\'5\"')"
+                  },
+                  "bmi": {
+                    "type": ["number", "null"],
+                    "description": "Body mass index"
+                  },
+                  "oxygen_saturation": {
+                    "type": ["integer", "null"],
+                    "description": "SpO2 percentage"
+                  }
+                }
+              },
+              "review_of_systems": {
+                "type": ["array", "null"],
+                "items": {"type": "string"},
+                "description": "ROS findings as list of strings"
+              },
+              "physical_examination": {
+                "type": ["string", "null"],
+                "description": "Physical exam findings narrative"
+              },
+              "diagnoses": {
+                "type": ["array", "null"],
+                "description": "Diagnoses documented at encounter",
+                "items": {
+                  "type": "object",
+                  "required": ["diagnosis"],
+                  "properties": {
+                    "diagnosis": {
+                      "type": "string",
+                      "description": "Diagnosis name"
+                    },
+                    "icd_code": {
+                      "type": ["string", "null"],
+                      "pattern": "^[A-Z][0-9]{2}(\\.[0-9A-Z]{1,4})?$",
+                      "description": "ICD-10-CM code"
+                    },
+                    "status": {
+                      "type": ["string", "null"],
+                      "enum": ["new", "stable", "worsening", "improved", "resolved", "chronic", null],
+                      "description": "Condition status at this encounter"
+                    }
+                  }
+                }
+              },
+              "assessment": {
+                "type": ["string", "null"],
+                "description": "Clinical assessment/impression narrative"
+              },
+              "plan": {
+                "type": ["array", "null"],
+                "description": "Treatment plan items",
+                "items": {
+                  "type": "object",
+                  "required": ["action"],
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "description": "Plan item description"
+                    },
+                    "action_type": {
+                      "type": ["string", "null"],
+                      "enum": ["medication", "referral", "imaging", "lab", "procedure", "follow_up", "patient_education", "therapy", "dme", "other", null],
+                      "description": "Classification of plan action"
+                    }
+                  }
+                }
+              },
+              "medications_prescribed": {
+                "type": ["array", "null"],
+                "description": "Medications prescribed or modified at encounter",
+                "items": {
+                  "type": "object",
+                  "required": ["medication"],
+                  "properties": {
+                    "medication": {
+                      "type": "string",
+                      "description": "Drug name"
+                    },
+                    "dosage": {
+                      "type": ["string", "null"],
+                      "description": "Dose (e.g., '2 mg', '100 mg')"
+                    },
+                    "frequency": {
+                      "type": ["string", "null"],
+                      "description": "Dosing frequency (e.g., 'BID', 'daily', 'prn')"
+                    },
+                    "indication": {
+                      "type": ["string", "null"],
+                      "description": "Reason prescribed"
+                    },
+                    "action": {
+                      "type": ["string", "null"],
+                      "enum": ["start", "continue", "increase", "decrease", "discontinue", "refill", null],
+                      "description": "Medication action at this encounter"
+                    }
+                  }
+                }
+              },
+              "referrals": {
+                "type": ["array", "null"],
+                "description": "Referrals made at encounter",
+                "items": {
+                  "type": "object",
+                  "required": ["referral_to"],
+                  "properties": {
+                    "referral_to": {
+                      "type": "string",
+                      "description": "Specialty, provider, or facility referred to"
+                    },
+                    "reason": {
+                      "type": ["string", "null"],
+                      "description": "Reason for referral"
+                    }
+                  }
+                }
+              },
+              "follow_up": {
+                "type": ["string", "null"],
+                "description": "Follow-up instructions (e.g., '6 weeks', '3 months', 'prn')"
+              },
+              "imaging_data": {
+                "type": ["object", "null"],
+                "description": "Structured data for imaging entry types",
+                "properties": {
+                  "modality": {
+                    "type": ["string", "null"],
+                    "enum": ["XR", "CT", "MRI", "US", "fluoroscopy", "nuclear", "PET", "DEXA", null],
+                    "description": "Imaging modality"
+                  },
+                  "body_region": {
+                    "type": ["string", "null"],
+                    "description": "Anatomical region imaged (e.g., 'cervical spine', 'brain')"
+                  },
+                  "clinical_indication": {
+                    "type": ["string", "null"],
+                    "description": "Reason imaging ordered"
+                  },
+                  "comparison_study": {
+                    "type": ["string", "null"],
+                    "description": "Prior study used for comparison (date or reference)"
+                  },
+                  "findings": {
+                    "type": ["string", "null"],
+                    "description": "Detailed radiological findings"
+                  },
+                  "impression": {
+                    "type": ["string", "null"],
+                    "description": "Radiologist's conclusion"
+                  }
+                }
+              },
+              "lab_data": {
+                "type": ["object", "null"],
+                "description": "Structured data for lab result entry types",
+                "properties": {
+                  "panel_name": {
+                    "type": ["string", "null"],
+                    "description": "Lab panel name if applicable (e.g., 'CBC', 'CMP')"
+                  },
+                  "results": {
+                    "type": ["array", "null"],
+                    "items": {
+                      "type": "object",
+                      "required": ["test_name", "value"],
+                      "properties": {
+                        "test_name": {
+                          "type": "string",
+                          "description": "Name of lab test"
+                        },
+                        "value": {
+                          "type": "string",
+                          "description": "Result value"
+                        },
+                        "unit": {
+                          "type": ["string", "null"],
+                          "description": "Unit of measurement"
+                        },
+                        "flag": {
+                          "type": ["string", "null"],
+                          "enum": ["normal", "low", "high", "critical", "abnormal", null],
+                          "description": "Result flag"
+                        },
+                        "reference_range": {
+                          "type": ["string", "null"],
+                          "description": "Normal reference range"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "procedure_data": {
+                "type": ["object", "null"],
+                "description": "Structured data for procedure entry types",
+                "properties": {
+                  "procedure_name": {
+                    "type": ["string", "null"],
+                    "description": "Name of procedure performed"
+                  },
+                  "indication": {
+                    "type": ["string", "null"],
+                    "description": "Reason for procedure"
+                  },
+                  "findings": {
+                    "type": ["string", "null"],
+                    "description": "Procedural findings"
+                  },
+                  "impression": {
+                    "type": ["string", "null"],
+                    "description": "Proceduralist conclusion"
+                  },
+                  "specimens": {
+                    "type": ["array", "null"],
+                    "items": {"type": "string"},
+                    "description": "Specimens collected (e.g., biopsies)"
+                  },
+                  "complications": {
+                    "type": ["string", "null"],
+                    "description": "Any complications noted"
+                  },
+                  "recommendations": {
+                    "type": ["string", "null"],
+                    "description": "Post-procedure recommendations"
+                  }
+                }
+              },
+              "therapy_data": {
+                "type": ["object", "null"],
+                "description": "Structured data for therapy evaluation entry types",
+                "properties": {
+                  "therapy_type": {
+                    "type": ["string", "null"],
+                    "enum": ["PT", "OT", "ST", null],
+                    "description": "Type of therapy (Physical, Occupational, Speech)"
+                  },
+                  "subjective": {
+                    "type": ["string", "null"],
+                    "description": "Patient-reported information"
+                  },
+                  "functional_measures": {
+                    "type": ["array", "null"],
+                    "description": "Objective measurements and test results",
+                    "items": {
+                      "type": "object",
+                      "required": ["measure", "value"],
+                      "properties": {
+                        "measure": {
+                          "type": "string",
+                          "description": "Name of measure (e.g., 'Cervical Flexion', 'MMT', 'Grip Strength')"
+                        },
+                        "value": {
+                          "type": "string",
+                          "description": "Measured value (e.g., '50%', '4+/5')"
+                        },
+                        "notes": {
+                          "type": ["string", "null"],
+                          "description": "Additional notes on finding"
+                        }
+                      }
+                    }
+                  },
+                  "treatment_provided": {
+                    "type": ["array", "null"],
+                    "items": {"type": "string"},
+                    "description": "Interventions performed during session"
+                  },
+                  "plan": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "frequency": {
+                        "type": ["string", "null"],
+                        "description": "Treatment frequency (e.g., '2x/wk')"
+                      },
+                      "duration": {
+                        "type": ["string", "null"],
+                        "description": "Expected treatment duration (e.g., '6 wks')"
+                      },
+                      "goals": {
+                        "type": ["array", "null"],
+                        "items": {"type": "string"},
+                        "description": "Therapy goals"
+                      }
+                    }
+                  },
+                  "rehab_potential": {
+                    "type": ["string", "null"],
+                    "enum": ["excellent", "good", "fair", "poor", null],
+                    "description": "Rehabilitation potential assessment"
+                  }
+                }
+              },
+              "psychological_data": {
+                "type": ["object", "null"],
+                "description": "Structured data for psychological evaluation entry types",
+                "properties": {
+                  "referral_reason": {
+                    "type": ["string", "null"],
+                    "description": "Reason for psychological evaluation"
+                  },
+                  "psychiatric_history": {
+                    "type": ["string", "null"],
+                    "description": "History of psychiatric treatment"
+                  },
+                  "mental_status_exam": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "appearance": {
+                        "type": ["string", "null"]
+                      },
+                      "behavior": {
+                        "type": ["string", "null"]
+                      },
+                      "mood": {
+                        "type": ["string", "null"]
+                      },
+                      "affect": {
+                        "type": ["string", "null"]
+                      },
+                      "thought_process": {
+                        "type": ["string", "null"]
+                      },
+                      "thought_content": {
+                        "type": ["string", "null"]
+                      },
+                      "cognition": {
+                        "type": ["string", "null"]
+                      },
+                      "insight": {
+                        "type": ["string", "null"]
+                      },
+                      "judgment": {
+                        "type": ["string", "null"]
+                      }
+                    }
+                  },
+                  "psychological_testing": {
+                    "type": ["array", "null"],
+                    "description": "Standardized tests administered",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "test_name": {
+                          "type": "string",
+                          "description": "Name of test (e.g., 'PHQ-9', 'GAD-7', 'MMSE')"
+                        },
+                        "score": {
+                          "type": ["string", "null"],
+                          "description": "Test score"
+                        },
+                        "interpretation": {
+                          "type": ["string", "null"],
+                          "description": "Score interpretation"
+                        }
+                      }
+                    }
+                  },
+                  "functional_conclusions": {
+                    "type": ["array", "null"],
+                    "description": "Functional capacity conclusions for disability determination",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "domain": {
+                          "type": "string",
+                          "description": "Functional domain assessed (e.g., 'Capacity to sustain persistence')"
+                        },
+                        "finding": {
+                          "type": "string",
+                          "description": "Conclusion for domain (e.g., 'mild to moderate ability')"
+                        }
+                      }
+                    }
+                  },
+                  "can_manage_funds": {
+                    "type": ["boolean", "null"],
+                    "description": "Able to manage funds without assistance"
+                  }
+                }
+              }
+            }
+          },
+          "formatted_content": {
+            "type": "string",
+            "description": "Markdown-formatted clinical content matching AdamsBridge style. Uses **bold:** for section headers (Chief Complaint, HPI, Assessment, Plan, etc.)"
+          }
+        }
+      }
+    },
+    "submission_metadata": {
+      "type": "object",
+      "description": "Chronology completion tracking",
+      "required": ["submit_date", "completed_date", "vendor"],
+      "properties": {
+        "submit_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date records submitted for review"
+        },
+        "completed_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date chronology completed"
+        },
+        "completed_by_id": {
+          "type": ["string", "null"],
+          "description": "Reviewer/system identifier"
+        },
+        "vendor": {
+          "type": "string",
+          "description": "Chronology source (e.g., 'LexMed', 'AdamsBridge')"
+        }
+      }
+    }
+  }
+}

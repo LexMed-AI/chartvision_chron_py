@@ -1,0 +1,1057 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MedicalEvidenceOfRecord",
+  "description": "Schema for F-section Medical Evidence of Record (MER) in Social Security Disability cases. Scoped strictly to medical evidence—excludes work history, RFC assessments, and adjudicative determinations.",
+  "version": "2.1.0",
+  "type": "object",
+  "required": ["meta", "claimant", "exhibits", "events"],
+  "properties": {
+
+    "meta": {
+      "type": "object",
+      "required": ["jobId", "generatedAt", "schemaVersion"],
+      "properties": {
+        "jobId": { "type": "string" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "schemaVersion": { "type": "string", "const": "2.1.0" },
+        "sourceSystem": { "type": ["string", "null"] },
+        "dateRange": {
+          "type": "object",
+          "properties": {
+            "earliestRecord": { "type": ["string", "null"], "format": "date" },
+            "latestRecord": { "type": ["string", "null"], "format": "date" }
+          }
+        },
+        "recordCounts": {
+          "type": "object",
+          "properties": {
+            "totalExhibits": { "type": "integer" },
+            "totalEvents": { "type": "integer" },
+            "totalPages": { "type": ["integer", "null"] },
+            "byExhibitType": { "type": "object", "additionalProperties": { "type": "integer" } },
+            "byVisitType": { "type": "object", "additionalProperties": { "type": "integer" } },
+            "byFacility": { "type": "object", "additionalProperties": { "type": "integer" } }
+          }
+        },
+        "processingNotes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "OCR issues, missing pages, illegible sections, date ambiguities"
+        }
+      }
+    },
+
+    "claimant": {
+      "type": "object",
+      "description": "Claimant identifiers as they appear in medical records—not full disability application data",
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "nameVariants": { 
+          "type": "array", 
+          "items": { "type": "string" },
+          "description": "Name variations found across records (maiden name, misspellings)"
+        },
+        "dateOfBirth": { "type": ["string", "null"], "format": "date" },
+        "ssn": { "type": ["string", "null"], "description": "Last 4 only" },
+        "caseNumber": { "type": ["string", "null"] },
+        "allegedOnsetDate": { "type": ["string", "null"], "format": "date" },
+        "demographics": {
+          "type": "object",
+          "description": "Demographics as documented in medical records",
+          "properties": {
+            "sex": { "type": ["string", "null"], "enum": ["male", "female", "other", null] },
+            "race": { "type": ["string", "null"] },
+            "ethnicity": { "type": ["string", "null"] },
+            "primaryLanguage": { "type": ["string", "null"] },
+            "handedness": { "type": ["string", "null"], "enum": ["right", "left", "ambidextrous", null] }
+          }
+        }
+      }
+    },
+
+    "exhibits": {
+      "type": "array",
+      "description": "F-section exhibit inventory",
+      "items": { "$ref": "#/definitions/Exhibit" }
+    },
+
+    "events": {
+      "type": "array",
+      "description": "Medical encounters extracted from exhibits",
+      "items": { "$ref": "#/definitions/MedicalEvent" }
+    },
+
+    "medications": {
+      "type": "array",
+      "description": "Medications documented across all records",
+      "items": { "$ref": "#/definitions/Medication" }
+    },
+
+    "diagnoses": {
+      "type": "array",
+      "description": "Unique diagnoses across all records",
+      "items": { "$ref": "#/definitions/Diagnosis" }
+    },
+
+    "providers": {
+      "type": "array",
+      "description": "Medical providers appearing in records",
+      "items": { "$ref": "#/definitions/Provider" }
+    },
+
+    "facilities": {
+      "type": "array",
+      "description": "Treatment facilities appearing in records",
+      "items": { "$ref": "#/definitions/Facility" }
+    },
+
+    "medicalSourceStatements": {
+      "type": "array",
+      "description": "Provider opinions on functional limitations as documented in MER (MSS, RFC questionnaires, letters)",
+      "items": { "$ref": "#/definitions/MedicalSourceStatement" }
+    },
+
+    "documentedLimitations": {
+      "type": "array",
+      "description": "Functional limitations as stated by providers in treatment records—not adjudicator assessments",
+      "items": { "$ref": "#/definitions/DocumentedLimitation" }
+    },
+
+    "longitudinalSummary": {
+      "$ref": "#/definitions/LongitudinalSummary",
+      "description": "Factual timeline patterns derived from MER—not interpretive analysis"
+    }
+  },
+
+  "definitions": {
+
+    "Exhibit": {
+      "type": "object",
+      "required": ["id", "exhibitId"],
+      "properties": {
+        "id": { "type": "string", "description": "Internal unique ID" },
+        "exhibitId": { "type": "string", "description": "SSA exhibit number (e.g., 1F, 11F)" },
+        "sourceType": {
+          "type": "string",
+          "enum": [
+            "treating_source",
+            "consultative_examination",
+            "hospital",
+            "emergency_room",
+            "mental_health",
+            "physical_therapy",
+            "occupational_therapy",
+            "pain_management",
+            "imaging",
+            "laboratory",
+            "pharmacy",
+            "nursing_facility",
+            "home_health",
+            "state_agency_medical",
+            "state_agency_psychological",
+            "other"
+          ]
+        },
+        "sourceTypeCustom": { "type": ["string", "null"] },
+        "facilityId": { "type": ["string", "null"] },
+        "providerIds": { 
+          "type": "array", 
+          "items": { "type": "string" },
+          "description": "Providers associated with this exhibit"
+        },
+        "dateRange": {
+          "type": "object",
+          "properties": {
+            "start": { "type": ["string", "null"], "format": "date" },
+            "end": { "type": ["string", "null"], "format": "date" }
+          }
+        },
+        "pageRange": {
+          "type": "object",
+          "properties": {
+            "start": { "type": "integer" },
+            "end": { "type": "integer" }
+          }
+        },
+        "pageCount": { "type": ["integer", "null"] },
+        "description": { "type": ["string", "null"] },
+        "recordTypes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "office_notes",
+              "discharge_summary",
+              "operative_report",
+              "history_and_physical",
+              "consultation",
+              "progress_notes",
+              "emergency_record",
+              "imaging_report",
+              "lab_results",
+              "therapy_notes",
+              "mental_status_exam",
+              "psychological_testing",
+              "medical_source_statement",
+              "prescription_records",
+              "nursing_notes",
+              "other"
+            ]
+          }
+        },
+        "isTreatingSource": { "type": "boolean", "default": false },
+        "treatmentRelationship": {
+          "type": ["object", "null"],
+          "description": "For treating sources: relationship duration and frequency",
+          "properties": {
+            "startDate": { "type": ["string", "null"], "format": "date" },
+            "endDate": { "type": ["string", "null"], "format": "date" },
+            "visitCount": { "type": ["integer", "null"] },
+            "frequency": { "type": ["string", "null"] }
+          }
+        },
+        "qualityFlags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "illegible_sections",
+              "missing_pages",
+              "incomplete_records",
+              "poor_ocr_quality",
+              "date_ambiguity",
+              "unsigned",
+              "undated"
+            ]
+          }
+        }
+      }
+    },
+
+    "MedicalEvent": {
+      "type": "object",
+      "required": ["id", "visitType", "citation"],
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": ["string", "null"], "format": "date" },
+        "dateEnd": { "type": ["string", "null"], "format": "date", "description": "For inpatient stays" },
+        "dateApproximate": { "type": ["boolean", "null"], "description": "True if date is estimated" },
+        "visitType": {
+          "type": "string",
+          "enum": [
+            "office_visit",
+            "emergency_room",
+            "inpatient_admission",
+            "inpatient_discharge",
+            "outpatient_procedure",
+            "surgery",
+            "telehealth",
+            "physical_therapy",
+            "occupational_therapy",
+            "mental_health_individual",
+            "mental_health_group",
+            "psychiatric_evaluation",
+            "psychological_testing",
+            "consultative_examination",
+            "functional_capacity_evaluation",
+            "independent_medical_exam",
+            "injection_procedure",
+            "infusion",
+            "diagnostic_imaging",
+            "diagnostic_lab",
+            "medication_management",
+            "progress_report",
+            "discharge_planning",
+            "other"
+          ]
+        },
+        "visitTypeCustom": { "type": ["string", "null"] },
+        "facilityId": { "type": ["string", "null"] },
+        "providerId": { "type": ["string", "null"] },
+        "providerIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "citation": { "$ref": "#/definitions/Citation" },
+        "clinical": { "$ref": "#/definitions/ClinicalData" }
+      }
+    },
+
+    "Citation": {
+      "type": "object",
+      "required": ["exhibitId", "page"],
+      "properties": {
+        "exhibitId": { "type": "string" },
+        "page": { "type": ["string", "integer"] },
+        "pageEnd": { "type": ["string", "integer", "null"] }
+      }
+    },
+
+    "ClinicalData": {
+      "type": "object",
+      "properties": {
+        "chiefComplaint": { "type": ["string", "null"] },
+        "historyOfPresentIllness": { "type": ["string", "null"] },
+        "hpiStructured": {
+          "type": ["object", "null"],
+          "properties": {
+            "onset": { "type": ["string", "null"] },
+            "location": { "type": ["string", "null"] },
+            "duration": { "type": ["string", "null"] },
+            "character": { "type": ["string", "null"] },
+            "aggravatingFactors": { "type": "array", "items": { "type": "string" } },
+            "relievingFactors": { "type": "array", "items": { "type": "string" } },
+            "timing": { "type": ["string", "null"] },
+            "severity": { "type": ["string", "null"] },
+            "associatedSymptoms": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "vitalSets": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/VitalSet" }
+        },
+        "physicalExam": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ExamFinding" }
+        },
+        "mentalStatusExam": { "$ref": "#/definitions/MentalStatusExam" },
+        "painAssessments": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/PainAssessment" }
+        },
+        "functionalFindings": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/FunctionalFinding" },
+          "description": "Objective functional observations (ROM, strength, gait, etc.)"
+        },
+        "diagnosticResults": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DiagnosticResult" }
+        },
+        "diagnoses": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DiagnosisInstance" }
+        },
+        "procedures": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Procedure" }
+        },
+        "medicationActions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/MedicationAction" }
+        },
+        "plan": { "type": ["string", "null"] },
+        "planStructured": {
+          "type": ["object", "null"],
+          "properties": {
+            "followUp": { "type": ["string", "null"] },
+            "referrals": { "type": "array", "items": { "type": "string" } },
+            "orderedTests": { "type": "array", "items": { "type": "string" } },
+            "patientInstructions": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "providerRestrictions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProviderRestriction" },
+          "description": "Work/activity restrictions imposed by provider at this visit"
+        },
+        "workStatus": {
+          "type": ["object", "null"],
+          "description": "Work status as documented by provider",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["full_duty", "light_duty", "modified_duty", "no_work", "sedentary_only", "part_time", "disabled", "unknown"]
+            },
+            "effectiveDate": { "type": ["string", "null"], "format": "date" },
+            "duration": { "type": ["string", "null"] },
+            "restrictions": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "mmiStatus": {
+          "type": ["object", "null"],
+          "description": "MMI status as documented by provider",
+          "properties": {
+            "status": { "type": "string", "enum": ["not_at_mmi", "at_mmi", "unknown"] },
+            "expectedDate": { "type": ["string", "null"], "format": "date" },
+            "notes": { "type": ["string", "null"] }
+          }
+        },
+        "prognosis": { "type": ["string", "null"] },
+        "compliance": {
+          "type": ["object", "null"],
+          "description": "Compliance observations documented in this record",
+          "properties": {
+            "medicationAdherence": { "type": ["string", "null"] },
+            "appointmentAdherence": { "type": ["string", "null"] },
+            "treatmentParticipation": { "type": ["string", "null"] },
+            "notes": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+
+    "VitalSet": {
+      "type": "object",
+      "properties": {
+        "context": { "type": ["string", "null"], "description": "e.g., 'triage', 'pre-procedure', 'post-treatment'" },
+        "bpSystolic": { "type": ["integer", "null"] },
+        "bpDiastolic": { "type": ["integer", "null"] },
+        "bpPosition": { "type": ["string", "null"], "enum": ["sitting", "standing", "supine", null] },
+        "pulse": { "type": ["integer", "null"] },
+        "pulseOx": { "type": ["integer", "null"] },
+        "pulseOxSupplemental": { "type": ["boolean", "null"], "description": "True if on supplemental O2" },
+        "respiratoryRate": { "type": ["integer", "null"] },
+        "temperature": { "type": ["number", "null"] },
+        "temperatureUnit": { "type": "string", "enum": ["F", "C"], "default": "F" },
+        "weight": { "type": ["number", "null"] },
+        "weightUnit": { "type": "string", "enum": ["lbs", "kg"], "default": "lbs" },
+        "height": { "type": ["number", "null"] },
+        "heightUnit": { "type": "string", "enum": ["in", "cm"], "default": "in" },
+        "bmi": { "type": ["number", "null"] }
+      }
+    },
+
+    "ExamFinding": {
+      "type": "object",
+      "required": ["finding"],
+      "properties": {
+        "system": {
+          "type": ["string", "null"],
+          "enum": [
+            "constitutional",
+            "heent",
+            "neck",
+            "cardiovascular",
+            "respiratory",
+            "gastrointestinal",
+            "genitourinary",
+            "musculoskeletal",
+            "neurologic",
+            "psychiatric",
+            "skin",
+            "lymphatic",
+            "extremities",
+            "spine_cervical",
+            "spine_thoracic",
+            "spine_lumbar",
+            "upper_extremity",
+            "lower_extremity",
+            "other",
+            null
+          ]
+        },
+        "bodyPart": { "type": ["string", "null"] },
+        "laterality": { "type": ["string", "null"], "enum": ["left", "right", "bilateral", null] },
+        "finding": { "type": "string" },
+        "findingType": {
+          "type": ["string", "null"],
+          "enum": ["normal", "abnormal", "not_examined", null]
+        },
+        "measurement": {
+          "type": ["object", "null"],
+          "properties": {
+            "type": { "type": "string", "description": "e.g., 'ROM', 'strength', 'reflex', 'sensation'" },
+            "value": { "type": ["number", "string"] },
+            "unit": { "type": ["string", "null"] },
+            "normalValue": { "type": ["number", "string", "null"] }
+          }
+        }
+      }
+    },
+
+    "MentalStatusExam": {
+      "type": "object",
+      "properties": {
+        "appearance": { "type": ["string", "null"] },
+        "behavior": { "type": ["string", "null"] },
+        "psychomotorActivity": { "type": ["string", "null"] },
+        "speech": { "type": ["string", "null"] },
+        "mood": { "type": ["string", "null"], "description": "Patient-reported" },
+        "affect": { "type": ["string", "null"], "description": "Observed" },
+        "thoughtProcess": { "type": ["string", "null"] },
+        "thoughtContent": { "type": ["string", "null"] },
+        "perceptions": { "type": ["string", "null"] },
+        "suicidalIdeation": { "type": ["string", "null"] },
+        "homicidalIdeation": { "type": ["string", "null"] },
+        "orientation": { "type": ["string", "null"] },
+        "attention": { "type": ["string", "null"] },
+        "concentration": { "type": ["string", "null"] },
+        "memoryImmediate": { "type": ["string", "null"] },
+        "memoryRecent": { "type": ["string", "null"] },
+        "memoryRemote": { "type": ["string", "null"] },
+        "abstractReasoning": { "type": ["string", "null"] },
+        "judgment": { "type": ["string", "null"] },
+        "insight": { "type": ["string", "null"] },
+        "intelligence": { "type": ["string", "null"] },
+        "gaf": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 }
+      }
+    },
+
+    "PainAssessment": {
+      "type": "object",
+      "properties": {
+        "scale": {
+          "type": "string",
+          "enum": ["nprs_0_10", "vas", "faces", "bpi", "oswestry", "ndi", "womac", "sf36_pain", "other"],
+          "default": "nprs_0_10"
+        },
+        "scaleCustom": { "type": ["string", "null"] },
+        "location": { "type": ["string", "null"] },
+        "laterality": { "type": ["string", "null"], "enum": ["left", "right", "bilateral", "midline", null] },
+        "current": { "type": ["number", "null"] },
+        "atWorst": { "type": ["number", "null"] },
+        "atLeast": { "type": ["number", "null"] },
+        "average": { "type": ["number", "null"] },
+        "scaleMax": { "type": "integer", "default": 10 },
+        "character": { 
+          "type": "array", 
+          "items": { "type": "string" },
+          "description": "e.g., 'sharp', 'dull', 'aching', 'burning', 'stabbing'"
+        },
+        "radiation": { "type": ["string", "null"] },
+        "frequency": { "type": ["string", "null"] },
+        "aggravatingFactors": { "type": "array", "items": { "type": "string" } },
+        "relievingFactors": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "FunctionalFinding": {
+      "type": "object",
+      "description": "Objective functional measurement from exam or testing",
+      "properties": {
+        "domain": {
+          "type": "string",
+          "enum": [
+            "range_of_motion",
+            "strength",
+            "grip_strength",
+            "pinch_strength",
+            "gait",
+            "station",
+            "balance",
+            "coordination",
+            "fine_motor",
+            "gross_motor",
+            "transfers",
+            "mobility",
+            "endurance",
+            "dexterity",
+            "sensation",
+            "reflex",
+            "other"
+          ]
+        },
+        "domainCustom": { "type": ["string", "null"] },
+        "bodyPart": { "type": ["string", "null"] },
+        "laterality": { "type": ["string", "null"], "enum": ["left", "right", "bilateral", null] },
+        "movement": { "type": ["string", "null"], "description": "For ROM: flexion, extension, abduction, etc." },
+        "finding": { "type": "string" },
+        "value": { "type": ["number", "string", "null"] },
+        "unit": { "type": ["string", "null"] },
+        "normalValue": { "type": ["number", "string", "null"] },
+        "percentOfNormal": { "type": ["number", "null"] },
+        "gradeScale": { 
+          "type": ["string", "null"], 
+          "description": "e.g., '0-5' for strength, 'WNL/Diminished/Absent' for sensation" 
+        },
+        "isDeficit": { "type": ["boolean", "null"] }
+      }
+    },
+
+    "DiagnosticResult": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": ["imaging", "laboratory", "electrodiagnostic", "pulmonary_function", "cardiac", "sleep_study", "psychological_testing", "other"]
+        },
+        "testName": { "type": "string" },
+        "date": { "type": ["string", "null"], "format": "date" },
+        "orderedBy": { "type": ["string", "null"], "description": "Provider ID" },
+        "performedAt": { "type": ["string", "null"], "description": "Facility ID" },
+        "result": { "type": ["string", "null"], "description": "Full result text or summary" },
+        "impression": { "type": ["string", "null"] },
+        "isNormal": { "type": ["boolean", "null"] },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "value": { "type": ["number", "string"] },
+              "unit": { "type": ["string", "null"] },
+              "referenceRange": { "type": ["string", "null"] },
+              "flag": { "type": ["string", "null"], "enum": ["high", "low", "critical_high", "critical_low", "abnormal", null] }
+            }
+          }
+        },
+        "citation": { "$ref": "#/definitions/Citation" }
+      }
+    },
+
+    "Procedure": {
+      "type": "object",
+      "properties": {
+        "code": { "type": ["string", "null"] },
+        "codeSystem": { "type": ["string", "null"], "enum": ["cpt", "icd10pcs", "hcpcs", null] },
+        "description": { "type": "string" },
+        "date": { "type": ["string", "null"], "format": "date" },
+        "bodyPart": { "type": ["string", "null"] },
+        "laterality": { "type": ["string", "null"], "enum": ["left", "right", "bilateral", null] },
+        "providerId": { "type": ["string", "null"] },
+        "facilityId": { "type": ["string", "null"] },
+        "indication": { "type": ["string", "null"] },
+        "findings": { "type": ["string", "null"] },
+        "outcome": { "type": ["string", "null"] },
+        "complications": { "type": ["string", "null"] },
+        "citation": { "$ref": "#/definitions/Citation" }
+      }
+    },
+
+    "Diagnosis": {
+      "type": "object",
+      "required": ["id", "code", "description"],
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "codeSystem": { "type": "string", "enum": ["icd10", "icd9", "dsm5"], "default": "icd10" },
+        "description": { "type": "string" },
+        "category": {
+          "type": ["string", "null"],
+          "enum": [
+            "musculoskeletal",
+            "neurologic",
+            "cardiovascular",
+            "respiratory",
+            "mental",
+            "pain",
+            "endocrine",
+            "gastrointestinal",
+            "genitourinary",
+            "hematologic",
+            "immunologic",
+            "dermatologic",
+            "oncologic",
+            "infectious",
+            "other",
+            null
+          ]
+        },
+        "chronicityAsDocumented": {
+          "type": ["string", "null"],
+          "enum": ["acute", "subacute", "chronic", "recurrent", null],
+          "description": "As characterized in medical records"
+        },
+        "firstDocumented": {
+          "type": ["object", "null"],
+          "properties": {
+            "date": { "type": "string", "format": "date" },
+            "eventId": { "type": "string" },
+            "providerId": { "type": ["string", "null"] }
+          }
+        },
+        "lastDocumented": {
+          "type": ["object", "null"],
+          "properties": {
+            "date": { "type": "string", "format": "date" },
+            "eventId": { "type": "string" }
+          }
+        },
+        "documentedCount": { "type": ["integer", "null"], "description": "Number of events where this diagnosis appears" }
+      }
+    },
+
+    "DiagnosisInstance": {
+      "type": "object",
+      "description": "Diagnosis as recorded at a specific encounter",
+      "properties": {
+        "diagnosisId": { "type": ["string", "null"], "description": "Reference to diagnoses[] entry" },
+        "code": { "type": ["string", "null"] },
+        "description": { "type": "string" },
+        "isPrimary": { "type": ["boolean", "null"] },
+        "status": { 
+          "type": ["string", "null"], 
+          "enum": ["active", "resolved", "rule_out", "history", null],
+          "description": "Status as documented at this encounter"
+        }
+      }
+    },
+
+    "Medication": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "genericName": { "type": ["string", "null"] },
+        "drugClass": {
+          "type": ["string", "null"],
+          "enum": [
+            "opioid_analgesic",
+            "non_opioid_analgesic",
+            "nsaid",
+            "muscle_relaxant",
+            "anticonvulsant",
+            "antidepressant",
+            "antipsychotic",
+            "anxiolytic",
+            "sedative_hypnotic",
+            "stimulant",
+            "antihypertensive",
+            "cardiac",
+            "respiratory",
+            "gastrointestinal",
+            "endocrine",
+            "immunosuppressant",
+            "antibiotic",
+            "other",
+            null
+          ]
+        },
+        "isControlled": { "type": ["boolean", "null"] },
+        "deaSchedule": { "type": ["integer", "null"], "minimum": 2, "maximum": 5 },
+        "route": { 
+          "type": ["string", "null"], 
+          "enum": ["oral", "topical", "transdermal", "injection_im", "injection_sc", "injection_iv", "injection_epidural", "injection_intraarticular", "inhaled", "rectal", "sublingual", "other", null] 
+        }
+      }
+    },
+
+    "MedicationAction": {
+      "type": "object",
+      "description": "Medication-related action documented at an encounter",
+      "properties": {
+        "medicationId": { "type": ["string", "null"] },
+        "medicationName": { "type": "string" },
+        "action": {
+          "type": "string",
+          "enum": ["prescribed", "continued", "increased", "decreased", "discontinued", "refilled", "administered", "recommended"]
+        },
+        "dosage": { "type": ["string", "null"] },
+        "frequency": { "type": ["string", "null"] },
+        "quantity": { "type": ["string", "null"] },
+        "indication": { "type": ["string", "null"] },
+        "response": { 
+          "type": ["string", "null"], 
+          "description": "Patient-reported or documented response to medication" 
+        },
+        "sideEffects": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "ProviderRestriction": {
+      "type": "object",
+      "description": "Work/activity restriction as documented by provider",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "lifting",
+            "carrying",
+            "pushing",
+            "pulling",
+            "standing",
+            "walking",
+            "sitting",
+            "climbing",
+            "balancing",
+            "stooping",
+            "kneeling",
+            "crouching",
+            "crawling",
+            "reaching",
+            "reaching_overhead",
+            "handling",
+            "fingering",
+            "repetitive_motion",
+            "driving",
+            "environmental",
+            "hours_per_day",
+            "days_per_week",
+            "no_work",
+            "bed_rest",
+            "custom"
+          ]
+        },
+        "typeCustom": { "type": ["string", "null"] },
+        "description": { "type": "string" },
+        "limit": { "type": ["string", "number", "null"] },
+        "unit": { "type": ["string", "null"] },
+        "frequency": { "type": ["string", "null"] },
+        "bodyPart": { "type": ["string", "null"] },
+        "laterality": { "type": ["string", "null"], "enum": ["left", "right", "bilateral", null] },
+        "duration": { "type": ["string", "null"] },
+        "effectiveDate": { "type": ["string", "null"], "format": "date" },
+        "expirationDate": { "type": ["string", "null"], "format": "date" }
+      }
+    },
+
+    "Provider": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "credentials": { "type": ["string", "null"] },
+        "specialty": { "type": ["string", "null"] },
+        "subspecialty": { "type": ["string", "null"] },
+        "npi": { "type": ["string", "null"] },
+        "providerType": {
+          "type": ["string", "null"],
+          "enum": [
+            "physician_md_do",
+            "nurse_practitioner",
+            "physician_assistant",
+            "psychologist",
+            "psychiatrist",
+            "physical_therapist",
+            "occupational_therapist",
+            "licensed_clinical_social_worker",
+            "licensed_professional_counselor",
+            "chiropractor",
+            "podiatrist",
+            "optometrist",
+            "dentist",
+            "speech_therapist",
+            "other",
+            null
+          ]
+        },
+        "isTreatingSource": { "type": "boolean", "default": false },
+        "facilityIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "firstSeen": { "type": ["string", "null"], "format": "date" },
+        "lastSeen": { "type": ["string", "null"], "format": "date" },
+        "visitCount": { "type": ["integer", "null"] }
+      }
+    },
+
+    "Facility": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": {
+          "type": ["string", "null"],
+          "enum": [
+            "hospital",
+            "hospital_outpatient",
+            "clinic",
+            "rehabilitation_center",
+            "pain_management_center",
+            "primary_care_office",
+            "specialist_office",
+            "mental_health_center",
+            "community_mental_health",
+            "emergency_department",
+            "urgent_care",
+            "imaging_center",
+            "ambulatory_surgery_center",
+            "skilled_nursing_facility",
+            "home_health",
+            "pharmacy",
+            "laboratory",
+            "state_agency",
+            "other",
+            null
+          ]
+        },
+        "address": {
+          "type": ["object", "null"],
+          "properties": {
+            "city": { "type": ["string", "null"] },
+            "state": { "type": ["string", "null"] },
+            "zip": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+
+    "MedicalSourceStatement": {
+      "type": "object",
+      "description": "Opinion on functional capacity from a medical source as documented in MER",
+      "required": ["id", "citation"],
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": ["string", "null"], "format": "date" },
+        "providerId": { "type": ["string", "null"] },
+        "providerName": { "type": ["string", "null"] },
+        "providerSpecialty": { "type": ["string", "null"] },
+        "sourceType": {
+          "type": "string",
+          "enum": ["treating_source", "consultative_examiner", "state_agency_medical", "state_agency_psychological", "other"]
+        },
+        "formType": {
+          "type": ["string", "null"],
+          "description": "e.g., 'Physical RFC Questionnaire', 'Mental RFC', 'Headache Questionnaire'"
+        },
+        "treatmentRelationship": {
+          "type": ["object", "null"],
+          "properties": {
+            "firstTreated": { "type": ["string", "null"], "format": "date" },
+            "lastTreated": { "type": ["string", "null"], "format": "date" },
+            "frequency": { "type": ["string", "null"] }
+          }
+        },
+        "diagnoses": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "physicalLimitations": {
+          "type": ["object", "null"],
+          "properties": {
+            "sittingHoursPerDay": { "type": ["string", "number", "null"] },
+            "standingHoursPerDay": { "type": ["string", "number", "null"] },
+            "walkingHoursPerDay": { "type": ["string", "number", "null"] },
+            "liftingOccasional": { "type": ["string", "number", "null"] },
+            "liftingFrequent": { "type": ["string", "number", "null"] },
+            "carryingOccasional": { "type": ["string", "number", "null"] },
+            "carryingFrequent": { "type": ["string", "number", "null"] },
+            "posturalLimitations": { "type": "array", "items": { "type": "string" } },
+            "manipulativeLimitations": { "type": "array", "items": { "type": "string" } },
+            "environmentalLimitations": { "type": "array", "items": { "type": "string" } },
+            "needsSitStandOption": { "type": ["boolean", "null"] },
+            "sitStandFrequency": { "type": ["string", "null"] },
+            "needsUnscheduledBreaks": { "type": ["boolean", "null"] },
+            "breakFrequency": { "type": ["string", "null"] },
+            "needsToElevateLegs": { "type": ["boolean", "null"] },
+            "assistiveDevices": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "mentalLimitations": {
+          "type": ["object", "null"],
+          "properties": {
+            "understandingMemory": { "type": "array", "items": { "type": "string" } },
+            "concentrationPersistence": { "type": "array", "items": { "type": "string" } },
+            "socialInteraction": { "type": "array", "items": { "type": "string" } },
+            "adaptation": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "offTaskPercentage": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "expectedAbsencesPerMonth": { "type": ["string", "number", "null"] },
+        "symptomsThatInterfere": { "type": "array", "items": { "type": "string" } },
+        "opinionOnDisability": { "type": ["string", "null"] },
+        "additionalComments": { "type": ["string", "null"] },
+        "citation": { "$ref": "#/definitions/Citation" }
+      }
+    },
+
+    "DocumentedLimitation": {
+      "type": "object",
+      "description": "Functional limitation explicitly stated in medical records (not inferred)",
+      "properties": {
+        "id": { "type": "string" },
+        "domain": { "type": "string" },
+        "limitation": { "type": "string" },
+        "asStated": { "type": ["string", "null"], "description": "Verbatim or near-verbatim from record" },
+        "severity": { "type": ["string", "null"] },
+        "providerId": { "type": ["string", "null"] },
+        "eventId": { "type": ["string", "null"] },
+        "date": { "type": ["string", "null"], "format": "date" },
+        "citation": { "$ref": "#/definitions/Citation" }
+      }
+    },
+
+    "LongitudinalSummary": {
+      "type": "object",
+      "description": "Factual patterns across the medical record—derived data, not interpretation",
+      "properties": {
+        "treatmentTimeline": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "period": { "type": "string", "description": "e.g., '2019-Q1', '2019-06 to 2019-08'" },
+              "eventCount": { "type": "integer" },
+              "treatmentTypes": { "type": "array", "items": { "type": "string" } },
+              "providers": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "treatmentGaps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "startDate": { "type": "string", "format": "date" },
+              "endDate": { "type": "string", "format": "date" },
+              "durationDays": { "type": "integer" },
+              "precedingEventId": { "type": ["string", "null"] },
+              "followingEventId": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "symptomMentions": {
+          "type": "array",
+          "description": "Frequency of symptom mentions across records",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symptom": { "type": "string" },
+              "mentionCount": { "type": "integer" },
+              "firstMention": { "type": "string", "format": "date" },
+              "lastMention": { "type": "string", "format": "date" },
+              "eventIds": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "measurementTrends": {
+          "type": "array",
+          "description": "Tracked measurements over time (ROM, strength, pain scores, etc.)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "measurementType": { "type": "string" },
+              "bodyPart": { "type": ["string", "null"] },
+              "laterality": { "type": ["string", "null"] },
+              "dataPoints": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": { "type": "string", "format": "date" },
+                    "value": { "type": ["number", "string"] },
+                    "unit": { "type": ["string", "null"] },
+                    "eventId": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "keyDates": {
+          "type": "array",
+          "description": "Significant dates in the medical record",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string", "format": "date" },
+              "eventType": { 
+                "type": "string", 
+                "enum": [
+                  "alleged_onset",
+                  "injury",
+                  "surgery",
+                  "hospitalization",
+                  "diagnosis",
+                  "treatment_start",
+                  "treatment_end",
+                  "mmi_reached",
+                  "work_stopped",
+                  "other"
+                ]
+              },
+              "description": { "type": "string" },
+              "eventId": { "type": ["string", "null"] },
+              "citation": { "$ref": "#/definitions/Citation" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

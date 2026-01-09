@@ -1,0 +1,476 @@
+# Citation System Configuration
+# Comprehensive configuration for the ERE PDF Pipeline Citation System
+
+# Citation Extractor Configuration
+extractor:
+  # Confidence thresholds for different citation types
+  confidence_thresholds:
+    ssa_form: 0.95
+    regulation: 0.90
+    exhibit: 0.85
+    page_ref: 0.80
+    case_law: 0.85
+  
+  # Pattern matching settings
+  patterns:
+    case_sensitive: false
+    fuzzy_matching: true
+    context_window: 50  # Characters around citation for context
+    max_page_number: 10000
+  
+  # Deduplication settings
+  deduplication:
+    enabled: true
+    position_tolerance: 10  # Characters
+    confidence_preference: "higher"  # "higher" or "first"
+  
+  # Known forms with metadata for linking
+  known_forms:
+    ssa_forms:
+      - id: "SSA-16"
+        name: "Application for Disability Insurance Benefits"
+        url: "https://www.ssa.gov/forms/ssa-16.pdf"
+        link_type: "external"
+      - id: "SSA-17"
+        name: "Disability Report - Field Office"
+        url: "https://www.ssa.gov/forms/ssa-17.pdf"
+        link_type: "external"
+      - id: "SSA-18"
+        name: "Application to Use SSA Employment Network Ticket"
+        url: "https://www.ssa.gov/forms/ssa-18.pdf"
+        link_type: "external"
+      - id: "SSA-20"
+        name: "Authorization for SSA to Obtain Wage and Employment Information"
+        url: "https://www.ssa.gov/forms/ssa-20.pdf"
+        link_type: "external"
+      - id: "SSA-25"
+        name: "Certificate of Election for Reduced Spouse's Benefits"
+        url: "https://www.ssa.gov/forms/ssa-25.pdf"
+        link_type: "external"
+      - id: "SSA-408"
+        name: "Consent for Release of Tax Return Information"
+        url: "https://www.ssa.gov/forms/ssa-408.pdf"
+        link_type: "external"
+      - id: "SSA-454"
+        name: "Continuing Disability Review Report"
+        url: "https://www.ssa.gov/forms/ssa-454.pdf"
+        link_type: "external"
+      - id: "SSA-455"
+        name: "Disability Update Report"
+        url: "https://www.ssa.gov/forms/ssa-455.pdf"
+        link_type: "external"
+      - id: "SSA-632"
+        name: "Request for Waiver of Overpayment"
+        url: "https://www.ssa.gov/forms/ssa-632.pdf"
+        link_type: "external"
+      - id: "SSA-633"
+        name: "Statement of Claimant or Other Person"
+        url: "https://www.ssa.gov/forms/ssa-633.pdf"
+        link_type: "external"
+      - id: "SSA-634"
+        name: "Request for Changed Supplemental Security Income"
+        url: "https://www.ssa.gov/forms/ssa-634.pdf"
+        link_type: "external"
+      - id: "SSA-635"
+        name: "Request for Information About Benefits"
+        url: "https://www.ssa.gov/forms/ssa-635.pdf"
+        link_type: "external"
+      - id: "SSA-660"
+        name: "Request to Select or Change Institution"
+        url: "https://www.ssa.gov/forms/ssa-660.pdf"
+        link_type: "external"
+      - id: "SSA-795"
+        name: "Statement of Claimant or Other Person"
+        url: "https://www.ssa.gov/forms/ssa-795.pdf"
+        link_type: "external"
+      - id: "SSA-820"
+        name: "Work Activity Report (Self-Employed)"
+        url: "https://www.ssa.gov/forms/ssa-820.pdf"
+        link_type: "external"
+      - id: "SSA-821"
+        name: "Work Activity Report - Employee"
+        url: "https://www.ssa.gov/forms/ssa-821.pdf"
+        link_type: "external"
+      - id: "SSA-823"
+        name: "Report of SGA Determination"
+        url: "https://www.ssa.gov/forms/ssa-823.pdf"
+        link_type: "external"
+      - id: "SSA-827"
+        name: "Authorization to Disclose Information"
+        url: "https://www.ssa.gov/forms/ssa-827.pdf"
+        link_type: "external"
+      - id: "SSA-831"
+        name: "Disability Determination and Transmittal"
+        url: "https://www.ssa.gov/forms/ssa-831.pdf"
+        link_type: "external"
+      - id: "SSA-832"
+        name: "Cessation or Continuance of Disability"
+        url: "https://www.ssa.gov/forms/ssa-832.pdf"
+        link_type: "external"
+      - id: "SSA-833"
+        name: "Cessation or Continuance of Disability (Child)"
+        url: "https://www.ssa.gov/forms/ssa-833.pdf"
+        link_type: "external"
+      - id: "SSA-1696"
+        name: "Appointment of Representative"
+        url: "https://www.ssa.gov/forms/ssa-1696.pdf"
+        link_type: "external"
+      - id: "SSA-1724"
+        name: "Claim for Amount Due a Deceased Beneficiary"
+        url: "https://www.ssa.gov/forms/ssa-1724.pdf"
+        link_type: "external"
+      - id: "SSA-3368"
+        name: "Disability Report - Adult"
+        url: "https://www.ssa.gov/forms/ssa-3368.pdf"
+        link_type: "external"
+      - id: "SSA-3369"
+        name: "Work History Report"
+        url: "https://www.ssa.gov/forms/ssa-3369.pdf"
+        link_type: "external"
+      - id: "SSA-3370"
+        name: "Disability Report - Appeal"
+        url: "https://www.ssa.gov/forms/ssa-3370.pdf"
+        link_type: "external"
+      - id: "SSA-3371"
+        name: "Disability Report - Field Office"
+        url: "https://www.ssa.gov/forms/ssa-3371.pdf"
+        link_type: "external"
+      - id: "SSA-3372"
+        name: "Disability Report - Field Office - Child"
+        url: "https://www.ssa.gov/forms/ssa-3372.pdf"
+        link_type: "external"
+      - id: "SSA-3373"
+        name: "Function Report - Adult"
+        url: "https://www.ssa.gov/forms/ssa-3373.pdf"
+        link_type: "external"
+      - id: "SSA-3374"
+        name: "Function Report - Child"
+        url: "https://www.ssa.gov/forms/ssa-3374.pdf"
+        link_type: "external"
+      - id: "SSA-3375"
+        name: "Function Report - Adult Third Party"
+        url: "https://www.ssa.gov/forms/ssa-3375.pdf"
+        link_type: "external"
+      - id: "SSA-3380"
+        name: "Disability Report - Initial Interview"
+        url: "https://www.ssa.gov/forms/ssa-3380.pdf"
+        link_type: "external"
+      - id: "SSA-3381"
+        name: "Disability Report - Initial Interview (Child)"
+        url: "https://www.ssa.gov/forms/ssa-3381.pdf"
+        link_type: "external"
+      - id: "SSA-3382"
+        name: "Disability Report - Interpreter"
+        url: "https://www.ssa.gov/forms/ssa-3382.pdf"
+        link_type: "external"
+      - id: "SSA-3441"
+        name: "Disability Report - Appeal"
+        url: "https://www.ssa.gov/forms/ssa-3441.pdf"
+        link_type: "external"
+      - id: "SSA-4734"
+        name: "Physical Residual Functional Capacity Assessment"
+        url: "https://www.ssa.gov/forms/ssa-4734.pdf"
+        link_type: "external"
+      - id: "SSA-4815"
+        name: "Medical Source Opinion About Physical Limitations"
+        url: "https://www.ssa.gov/forms/ssa-4815.pdf"
+        link_type: "external"
+      - id: "SSA-5002"
+        name: "Report of Contact"
+        url: "https://www.ssa.gov/forms/ssa-5002.pdf"
+        link_type: "external"
+      - id: "SSA-8000"
+        name: "Application for Supplemental Security Income"
+        url: "https://www.ssa.gov/forms/ssa-8000.pdf"
+        link_type: "external"
+      - id: "SSA-8001"
+        name: "Reconsideration Request for Medical Determination"
+        url: "https://www.ssa.gov/forms/ssa-8001.pdf"
+        link_type: "external"
+      - id: "SSA-8003"
+        name: "Waiver of Right to Personal Conference"
+        url: "https://www.ssa.gov/forms/ssa-8003.pdf"
+        link_type: "external"
+
+    hearing_forms:
+      - id: "HA-501"
+        name: "Request for Hearing by Administrative Law Judge"
+        url: "#ha501-section"
+        link_type: "internal"
+      - id: "HA-504"
+        name: "Request for Review of Hearing Decision"
+        url: "#ha504-section"
+        link_type: "internal"
+      - id: "HA-506"
+        name: "Request for Appeals Council Review"
+        url: "#ha506-section"
+        link_type: "internal"
+      - id: "HA-507"
+        name: "Request for Review of Administrative Law Judge Decision"
+        url: "#ha507-section"
+        link_type: "internal"
+      - id: "HA-520"
+        name: "Request for Oral Argument"
+        url: "#ha520-section"
+        link_type: "internal"
+      - id: "HA-4608"
+        name: "Objection to Issue"
+        url: "#ha4608-section"
+        link_type: "internal"
+
+    system_forms:
+      - id: "CERTERN"
+        name: "Certificate of Earnings"
+        url: "#certern-section"
+        link_type: "internal"
+      - id: "DDE"
+        name: "Disability Determination Explanation"
+        url: "#dde-section"
+        link_type: "internal"
+      - id: "SEQY"
+        name: "Summary Earnings Query"
+        url: "#seqy-section"
+        link_type: "internal"
+      - id: "POMS"
+        name: "Program Operations Manual System"
+        url: "#poms-section"
+        link_type: "internal"
+
+# Citation Linker Configuration
+linker:
+  # Base URLs for different link types
+  base_urls:
+    ssa_forms: "https://www.ssa.gov/forms/"
+    cfr: "https://www.ecfr.gov/current/"
+    usc: "https://www.law.cornell.edu/uscode/text/"
+    poms: "https://secure.ssa.gov/poms.nsf/lnx/"
+  
+  # Link generation settings
+  link_generation:
+    preserve_case: false
+    include_tooltips: true
+    include_metadata: true
+    validate_external_links: false
+  
+  # HTML generation settings
+  html:
+    link_class_prefix: "citation-link"
+    external_link_attributes:
+      target: "_blank"
+      rel: "noopener noreferrer"
+    internal_link_attributes:
+      class: "internal-link"
+
+# Citation Validator Configuration
+validator:
+  # Validation settings
+  validation:
+    strict_mode: false
+    check_external_references: true
+    validate_page_ranges: true
+    require_exhibit_registration: false
+    case_sensitivity: false
+    confidence_threshold: 0.7
+  
+  # Validation rules configuration
+  rules:
+    format_validation:
+      enabled: true
+      severity: "error"
+    
+    existence_validation:
+      enabled: true
+      severity: "warning"
+    
+    consistency_validation:
+      enabled: true
+      severity: "warning"
+    
+    cross_reference_validation:
+      enabled: true
+      severity: "error"
+    
+    duplicate_detection:
+      enabled: true
+      severity: "info"
+  
+  # Known regulations for validation
+  known_regulations:
+    cfr:
+      title_20:  # Social Security Administration
+        - "404.1520"  # Sequential evaluation process
+        - "404.1521"  # Significant gainful activity
+        - "404.1522"  # Age as a vocational factor
+        - "404.1523"  # Impairment duration requirement
+        - "404.1524"  # How we determine disability
+        - "404.1525"  # Determination of medical equivalence
+        - "404.1526"  # Medical equivalence for multiple impairments
+        - "404.1527"  # Evaluating opinion evidence
+        - "404.1528"  # Statements about pain or other symptoms
+        - "404.1529"  # How we evaluate symptoms
+        - "404.1545"  # Your residual functional capacity
+        - "404.1560"  # When we will find you disabled
+        - "404.1561"  # Meaning of work
+        - "404.1562"  # Old age, survivors, and disability insurance
+        - "404.1563"  # Time limits for filing applications
+        - "404.1564"  # When an application is considered filed
+        - "404.1565"  # Your age as a vocational factor
+        - "404.1566"  # Your education as a vocational factor
+        - "404.1567"  # Your work experience as a vocational factor
+        - "404.1568"  # Skill requirements
+        - "416.920"   # SSI sequential evaluation (parallel to 404.1520)
+        - "416.921"
+        - "416.922"
+        - "416.923"
+        - "416.924"
+        - "416.925"
+        - "416.926"
+        - "416.927"
+        - "416.928"
+        - "416.929"
+    
+    usc:
+      title_42:  # Public Health and Social Security
+        - "401"  # Trust funds
+        - "402"  # Old-age and survivors insurance benefit payments
+        - "403"  # Reduction of insurance benefits
+        - "404"  # Overpayments and underpayments
+        - "405"  # Evidence, procedure, and certification for payments
+        - "406"  # Representation of claimants before Commissioner
+        - "407"  # Assignment; crediting unassigned payments
+        - "408"  # Penalties
+        - "409"  # "Wages" and "employment" defined
+        - "410"  # Definitions relating to employment
+        - "411"  # Definitions relating to self-employment
+        - "412"  # Self-employment income credited to calendar years
+        - "413"  # Quarter and quarter of coverage
+        - "414"  # Insured status for purposes of old-age benefits
+        - "415"  # Computation of primary insurance amount
+        - "416"  # Additional definitions
+        - "417"  # Benefits for certain married individuals
+        - "418"  # Voluntary agreements for coverage of state employees
+        - "419"  # Federal employees
+        - "420"  # Disability determinations
+        - "421"  # Disability determinations
+        - "422"  # Rehabilitation services
+        - "423"  # Disability insurance benefit payments
+        - "424"  # Reduction of disability benefits
+        - "425"  # Adjustments in wages and self-employment income
+        - "1381" # Statement of purpose of subchapter XVI (SSI)
+        - "1382" # Eligibility for benefits
+        - "1383" # Procedure for payment of benefits
+        - "1384" # Penalties for fraud
+        - "1385" # Representation of claimants
+
+# Exhibit Tracker Configuration
+exhibit_tracker:
+  # Storage settings
+  storage:
+    registry_file: "exhibit_registry.json"
+    backup_frequency: "daily"
+    auto_backup: true
+    compression: true
+  
+  # Auto-discovery settings
+  auto_discovery:
+    enabled: true
+    register_unknown_exhibits: true
+    confidence_threshold: 0.8
+    default_source_type: "auto_discovered"
+  
+  # Validation settings
+  validation:
+    check_file_existence: true
+    verify_file_integrity: true
+    hash_algorithm: "sha256"
+    size_tolerance: 1024  # bytes
+  
+  # Organization settings
+  organization:
+    auto_categorize: true
+    category_rules:
+      medical:
+        patterns: ["medical", "doctor", "physician", "treatment", "diagnosis"]
+        exhibit_prefixes: ["1F", "2F", "3F", "4F", "5F"]
+      vocational:
+        patterns: ["vocational", "work", "employment", "job", "occupation"]
+        exhibit_prefixes: ["1E", "2E", "3E", "4E", "5E"]
+      administrative:
+        patterns: ["administrative", "form", "application", "notice"]
+        exhibit_prefixes: ["1D", "2D", "3D", "4D", "5D"]
+
+# Performance Configuration
+performance:
+  # Processing limits
+  limits:
+    max_document_size: 52428800  # 50MB
+    max_citations_per_page: 1000
+    max_processing_time: 300  # 5 minutes
+    memory_limit: 1073741824  # 1GB
+  
+  # Optimization settings
+  optimization:
+    parallel_processing: true
+    max_workers: 4
+    chunk_size: 1000  # characters
+    cache_enabled: true
+    cache_size: 1000  # number of entries
+  
+  # Monitoring settings
+  monitoring:
+    track_performance: true
+    log_slow_operations: true
+    slow_operation_threshold: 10.0  # seconds
+    collect_statistics: true
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "citation_system.log"
+  max_file_size: 10485760  # 10MB
+  backup_count: 5
+  
+  # Component-specific logging levels
+  components:
+    extractor: "INFO"
+    linker: "INFO"
+    validator: "INFO"
+    tracker: "INFO"
+
+# API Configuration (for future web API integration)
+api:
+  enabled: false
+  host: "localhost"
+  port: 8000
+  cors_origins: ["*"]
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 100
+  
+  # Authentication (for future implementation)
+  authentication:
+    enabled: false
+    method: "api_key"  # "api_key", "jwt", "oauth"
+
+# Feature Flags
+features:
+  # Experimental features
+  experimental:
+    ai_assisted_validation: false
+    automatic_form_detection: false
+    smart_exhibit_categorization: false
+    cross_document_linking: false
+  
+  # Beta features
+  beta:
+    batch_processing: true
+    async_processing: false
+    real_time_validation: false
+  
+  # Stable features
+  stable:
+    citation_extraction: true
+    citation_linking: true
+    citation_validation: true
+    exhibit_tracking: true

@@ -1,0 +1,1000 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DisabilityDeterminationExplanation",
+  "description": "Schema for A-section Disability Determination Explanation (DDE) in SSA Electronic Records. Covers SSI (Title XVI), DIB (Title II), and Concurrent claims. Based on POMS DI 26515.001 rationale requirements and SSA-831 data elements.",
+  "version": "1.0.0",
+  "type": "object",
+  "required": ["meta", "claim", "claimant", "determination"],
+  "properties": {
+
+    "meta": {
+      "type": "object",
+      "required": ["schemaVersion", "generatedAt"],
+      "properties": {
+        "schemaVersion": { "type": "string", "const": "1.0.0" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "sourceSystem": { "type": ["string", "null"] },
+        "ddsState": { "type": ["string", "null"], "description": "State DDS processing the claim" },
+        "ddsCode": { "type": ["string", "null"] }
+      }
+    },
+
+    "claim": {
+      "type": "object",
+      "required": ["claimType", "programType"],
+      "properties": {
+        "claimType": {
+          "type": "string",
+          "enum": ["initial", "reconsideration", "continuing_disability_review", "reopening"],
+          "description": "Stage of claim processing"
+        },
+        "programType": {
+          "type": "string",
+          "enum": ["dib", "ssi", "concurrent", "dwb", "cdb", "dac", "mqge"],
+          "description": "DIB=Title II Disability Insurance Benefits, SSI=Title XVI Supplemental Security Income, Concurrent=Both, DWB=Disabled Widow(er), CDB/DAC=Childhood Disability Benefits, MQGE=Medicare Qualified Government Employment"
+        },
+        "programTypeDetails": {
+          "type": ["object", "null"],
+          "properties": {
+            "titleII": { "type": "boolean" },
+            "titleXVI": { "type": "boolean" },
+            "isDWB": { "type": "boolean" },
+            "isCDB": { "type": "boolean" },
+            "isMQGE": { "type": "boolean" },
+            "isBlindness": { "type": "boolean" }
+          }
+        },
+        "filingDate": { "type": ["string", "null"], "format": "date" },
+        "protectedFilingDate": { "type": ["string", "null"], "format": "date" },
+        "allegedOnsetDate": { "type": ["string", "null"], "format": "date" },
+        "amendedOnsetDate": { "type": ["string", "null"], "format": "date" },
+        "establishedOnsetDate": { "type": ["string", "null"], "format": "date" },
+        "onsetDateRationale": { "type": ["string", "null"], "description": "Explanation if EOD differs from AOD" },
+        "dateLastInsured": { 
+          "type": ["string", "null"], 
+          "format": "date",
+          "description": "DLI for Title II claims"
+        },
+        "prescribedPeriod": {
+          "type": ["object", "null"],
+          "description": "For DWB claims",
+          "properties": {
+            "startDate": { "type": ["string", "null"], "format": "date" },
+            "endDate": { "type": ["string", "null"], "format": "date" }
+          }
+        },
+        "priorFilings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "filingDate": { "type": "string", "format": "date" },
+              "programType": { "type": "string" },
+              "determinationDate": { "type": ["string", "null"], "format": "date" },
+              "outcome": { "type": "string", "enum": ["allowed", "denied", "dismissed", "withdrawn"] },
+              "level": { "type": "string", "enum": ["initial", "reconsideration", "alj", "appeals_council", "federal_court"] },
+              "resAdjudicata": { "type": ["boolean", "null"] },
+              "collateralEstoppel": { "type": ["boolean", "null"] },
+              "reopeningConsidered": { "type": ["boolean", "null"] }
+            }
+          }
+        },
+        "periodAdjudicated": {
+          "type": "object",
+          "description": "Time period evaluated in this determination",
+          "properties": {
+            "startDate": { "type": ["string", "null"], "format": "date" },
+            "endDate": { "type": ["string", "null"], "format": "date" },
+            "isClosedPeriod": { "type": ["boolean", "null"] }
+          }
+        }
+      }
+    },
+
+    "claimant": {
+      "type": "object",
+      "properties": {
+        "ssn": { "type": ["string", "null"], "description": "Last 4 only for display" },
+        "name": { "type": ["string", "null"] },
+        "dateOfBirth": { "type": ["string", "null"], "format": "date" },
+        "ageAtFiling": { "type": ["integer", "null"] },
+        "ageAtDetermination": { "type": ["integer", "null"] },
+        "ageCategory": {
+          "type": ["string", "null"],
+          "enum": ["child", "younger_individual_18_44", "younger_individual_45_49", "closely_approaching_advanced_age_50_54", "advanced_age_55_59", "closely_approaching_retirement_60_64", "retirement_age_65_plus", null]
+        },
+        "education": {
+          "type": ["object", "null"],
+          "properties": {
+            "level": {
+              "type": ["string", "null"],
+              "enum": ["illiterate", "marginal", "limited", "high_school_or_above", null]
+            },
+            "highestGrade": { "type": ["string", "null"] },
+            "hasGED": { "type": ["boolean", "null"] },
+            "specialEducation": { "type": ["boolean", "null"] },
+            "englishProficiency": { "type": ["string", "null"], "enum": ["fluent", "limited", "none", null] }
+          }
+        },
+        "wageEarner": {
+          "type": ["object", "null"],
+          "description": "For CDB/DWB claims, information about the wage earner",
+          "properties": {
+            "name": { "type": ["string", "null"] },
+            "ssn": { "type": ["string", "null"] },
+            "relationship": { "type": ["string", "null"], "enum": ["parent", "spouse", "deceased_spouse", null] }
+          }
+        }
+      }
+    },
+
+    "ssiEligibility": {
+      "type": ["object", "null"],
+      "description": "Title XVI non-disability eligibility factors (verified by FO)",
+      "properties": {
+        "incomeEligible": { "type": ["boolean", "null"] },
+        "resourceEligible": { "type": ["boolean", "null"] },
+        "citizenshipStatus": { "type": ["string", "null"] },
+        "residencyMet": { "type": ["boolean", "null"] },
+        "livingArrangement": { "type": ["string", "null"] }
+      }
+    },
+
+    "allegations": {
+      "type": "object",
+      "description": "Claimant's stated impairments and limitations per POMS DI 26515.001 B.2",
+      "properties": {
+        "allegedImpairments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "condition": { "type": "string" },
+              "bodySystem": { "type": ["string", "null"] },
+              "allegedAtFiling": { "type": "boolean", "default": true },
+              "discoveredDuringDevelopment": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "allegedLimitations": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Functional limitations as stated by claimant"
+        },
+        "symptomAllegations": {
+          "type": ["object", "null"],
+          "description": "SSR 16-3p symptom evaluation",
+          "properties": {
+            "painAllegations": { "type": ["string", "null"] },
+            "fatigueAllegations": { "type": ["string", "null"] },
+            "otherSymptoms": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "sgaAnalysis": {
+      "type": "object",
+      "description": "Step 1: Substantial Gainful Activity analysis per POMS DI 26515.001 B.3",
+      "properties": {
+        "isCurrentlyWorking": { "type": ["boolean", "null"] },
+        "workActivity": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "employer": { "type": ["string", "null"] },
+              "startDate": { "type": ["string", "null"], "format": "date" },
+              "endDate": { "type": ["string", "null"], "format": "date" },
+              "monthlyEarnings": { "type": ["number", "null"] },
+              "hoursPerWeek": { "type": ["number", "null"] },
+              "isSGA": { "type": ["boolean", "null"] },
+              "resolution": {
+                "type": ["string", "null"],
+                "enum": ["sga", "not_sga", "unsuccessful_work_attempt", "subsidized", "impairment_related_work_expenses", "trial_work_period", null]
+              }
+            }
+          }
+        },
+        "sgaThresholdUsed": { "type": ["number", "null"], "description": "Monthly SGA amount applicable" },
+        "blindSGAThreshold": { "type": ["number", "null"] },
+        "sgaDetermination": {
+          "type": ["string", "null"],
+          "enum": ["engaging_in_sga", "not_engaging_in_sga", null]
+        },
+        "uwaAnalysis": {
+          "type": ["object", "null"],
+          "description": "Unsuccessful Work Attempt analysis",
+          "properties": {
+            "considered": { "type": "boolean" },
+            "qualifies": { "type": ["boolean", "null"] },
+            "rationale": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+
+    "technicalIssues": {
+      "type": ["object", "null"],
+      "description": "Other technical issues per POMS DI 26515.001 B.4",
+      "properties": {
+        "dliIssues": {
+          "type": ["object", "null"],
+          "properties": {
+            "hasIssue": { "type": "boolean" },
+            "resolution": { "type": ["string", "null"] }
+          }
+        },
+        "insuredStatusIssues": { "type": ["string", "null"] },
+        "otherTechnicalIssues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "issue": { "type": "string" },
+              "resolution": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+
+    "medicalEvidence": {
+      "type": "object",
+      "description": "Evidence citations per POMS DI 26515.001 B.1",
+      "properties": {
+        "medicalSources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sourceType": {
+                "type": "string",
+                "enum": ["treating_source", "consultative_examiner", "hospital", "clinic", "mental_health_center", "state_agency_medical", "state_agency_psychological", "other"]
+              },
+              "sourceName": { "type": "string" },
+              "credentials": { "type": ["string", "null"] },
+              "specialty": { "type": ["string", "null"] },
+              "dateOfReceipt": { "type": ["string", "null"], "format": "date" },
+              "dateOfExam": { "type": ["string", "null"], "format": "date" },
+              "exhibitId": { "type": ["string", "null"] },
+              "isTreatingSource": { "type": "boolean", "default": false },
+              "treatmentRelationship": {
+                "type": ["object", "null"],
+                "properties": {
+                  "startDate": { "type": ["string", "null"], "format": "date" },
+                  "frequency": { "type": ["string", "null"] }
+                }
+              }
+            }
+          }
+        },
+        "nonmedicalSources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sourceType": {
+                "type": "string",
+                "enum": ["professional_nonmedical", "third_party", "claimant_statement", "school_records", "employer", "other"]
+              },
+              "sourceName": { "type": ["string", "null"], "description": "Name for professional sources; generic for others" },
+              "dateOfReceipt": { "type": ["string", "null"], "format": "date" },
+              "exhibitId": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "consultativeExaminations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "examinerName": { "type": "string" },
+              "credentials": { "type": ["string", "null"] },
+              "specialty": { "type": ["string", "null"] },
+              "examDate": { "type": "string", "format": "date" },
+              "examType": { "type": ["string", "null"], "enum": ["physical", "mental", "both", null] },
+              "exhibitId": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+
+    "impairmentAnalysis": {
+      "type": "object",
+      "description": "Step 2-3: Severity and Listings analysis",
+      "properties": {
+        "medicallyDeterminableImpairments": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Impairment" }
+        },
+        "nonSevereImpairments": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Impairment" }
+        },
+        "severeImpairments": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Impairment" }
+        },
+        "primaryImpairment": { "$ref": "#/definitions/Impairment" },
+        "secondaryImpairment": { "$ref": "#/definitions/Impairment" },
+        "combinedImpairmentEffect": {
+          "type": ["object", "null"],
+          "description": "SSA-831 Items 34A/34B",
+          "properties": {
+            "multipleNonsevereCombined": { "type": ["boolean", "null"] },
+            "multipleSevereNonsevereCombined": { "type": ["boolean", "null"] },
+            "combinationRationale": { "type": ["string", "null"] }
+          }
+        },
+        "durationRequirement": {
+          "type": "object",
+          "description": "12-month duration requirement per 20 CFR 404.1509",
+          "properties": {
+            "met": { "type": ["boolean", "null"] },
+            "analysis": {
+              "type": "object",
+              "properties": {
+                "hasLastedTwelveMonths": { "type": ["boolean", "null"] },
+                "expectedToLastTwelveMonths": { "type": ["boolean", "null"] },
+                "expectedToResultInDeath": { "type": ["boolean", "null"] },
+                "impairmentOnsetDate": { "type": ["string", "null"], "format": "date" },
+                "monthsSinceOnset": { "type": ["integer", "null"] }
+              }
+            },
+            "expectedImprovement": {
+              "type": ["object", "null"],
+              "description": "When denial is based on expected improvement within 12 months",
+              "properties": {
+                "improvementExpected": { "type": "boolean" },
+                "expectedImprovementDate": { "type": ["string", "null"], "format": "date" },
+                "expectedImprovementTimeframe": { "type": ["string", "null"], "description": "e.g., '6 months', '9 months post-surgery'" },
+                "basisForExpectation": { 
+                  "type": ["string", "null"],
+                  "description": "Medical basis for expected improvement (e.g., post-surgical recovery, treatment response, natural healing)"
+                },
+                "medicalEvidenceSupporting": { "type": "array", "items": { "type": "string" } },
+                "treatmentExpectedToResolve": { "type": ["string", "null"] },
+                "conditionsExpectedToImprove": { "type": "array", "items": { "type": "string" } }
+              }
+            },
+            "rationale": { "type": ["string", "null"] }
+          }
+        },
+        "listingsAnalysis": {
+          "type": ["object", "null"],
+          "description": "Step 3: Medical Listings evaluation",
+          "properties": {
+            "listingsConsidered": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "listingNumber": { "type": "string" },
+                  "listingTitle": { "type": ["string", "null"] },
+                  "listingRequirements": {
+                    "type": ["object", "null"],
+                    "description": "What the listing requires for a disability finding",
+                    "properties": {
+                      "paragraphARequirements": { 
+                        "type": "array", 
+                        "items": { "type": "string" },
+                        "description": "Medical criteria required"
+                      },
+                      "paragraphBRequirements": { 
+                        "type": "array", 
+                        "items": { "type": "string" },
+                        "description": "Functional criteria required (mental listings)"
+                      },
+                      "paragraphCRequirements": { 
+                        "type": "array", 
+                        "items": { "type": "string" },
+                        "description": "Additional criteria (some listings)"
+                      },
+                      "durationRequirement": { "type": ["string", "null"] },
+                      "requirementsSummary": { "type": ["string", "null"], "description": "Brief statement of what the listing requires" }
+                    }
+                  },
+                  "claimantMeetsRequirements": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "meetsParagraphA": { "type": ["boolean", "null"] },
+                      "paragraphACriteriaMet": { "type": "array", "items": { "type": "string" } },
+                      "paragraphACriteriaNotMet": { "type": "array", "items": { "type": "string" } },
+                      "meetsParagraphB": { "type": ["boolean", "null"] },
+                      "paragraphBCriteriaMet": { "type": "array", "items": { "type": "string" } },
+                      "paragraphBCriteriaNotMet": { "type": "array", "items": { "type": "string" } },
+                      "meetsParagraphC": { "type": ["boolean", "null"] },
+                      "meetsDuration": { "type": ["boolean", "null"] }
+                    }
+                  },
+                  "meetsListing": { "type": "boolean" },
+                  "equalsListing": { "type": "boolean" },
+                  "rationale": { "type": ["string", "null"] }
+                }
+              }
+            },
+            "mostCloselyApplicableListing": { "type": ["string", "null"] },
+            "overallMeetsParagraphA": { "type": ["boolean", "null"] },
+            "overallMeetsParagraphB": { "type": ["boolean", "null"] },
+            "overallMeetsParagraphC": { "type": ["boolean", "null"] },
+            "functionalEquivalence": {
+              "type": ["object", "null"],
+              "description": "For child SSI claims",
+              "properties": {
+                "considered": { "type": "boolean" },
+                "domainRatings": {
+                  "type": "object",
+                  "properties": {
+                    "acquiringAndUsingInformation": { "$ref": "#/definitions/ChildDomainRating" },
+                    "attendingAndCompletingTasks": { "$ref": "#/definitions/ChildDomainRating" },
+                    "interactingWithOthers": { "$ref": "#/definitions/ChildDomainRating" },
+                    "movingAndManipulating": { "$ref": "#/definitions/ChildDomainRating" },
+                    "selfCare": { "$ref": "#/definitions/ChildDomainRating" },
+                    "healthAndPhysicalWellBeing": { "$ref": "#/definitions/ChildDomainRating" }
+                  }
+                },
+                "functionallyEquals": { "type": ["boolean", "null"] }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "symptomEvaluation": {
+      "type": ["object", "null"],
+      "description": "Symptom evaluation per SSR 16-3p and POMS DI 26515.001 B.6",
+      "properties": {
+        "claimantStatements": { "type": ["string", "null"] },
+        "consistencyWithObjectiveEvidence": { "type": ["string", "null"] },
+        "dailyActivities": { "type": ["string", "null"] },
+        "treatmentHistory": { "type": ["string", "null"] },
+        "medicationEffects": { "type": ["string", "null"] },
+        "otherFactors": { "type": ["string", "null"] },
+        "credibilityAssessment": { "type": ["string", "null"] },
+        "symptomLimitationsAccepted": { "type": "array", "items": { "type": "string" } },
+        "symptomLimitationsRejected": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "allegation": { "type": "string" },
+              "reasonRejected": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "medicalOpinions": {
+      "type": "object",
+      "description": "Medical opinions per POMS DI 26515.001 B.7-8",
+      "properties": {
+        "claimFiledBefore20170327": { "type": "boolean", "description": "Determines which opinion rules apply" },
+        "opinionsPreMarch2017": {
+          "type": "array",
+          "description": "For claims filed before 3/27/2017 - weight-based evaluation",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sourceName": { "type": "string" },
+              "sourceType": { "type": "string" },
+              "dateOfOpinion": { "type": ["string", "null"], "format": "date" },
+              "opinionContent": { "type": "string" },
+              "weightAssigned": {
+                "type": "string",
+                "enum": ["controlling", "great", "significant", "some", "little", "none"]
+              },
+              "isTreatingSource": { "type": "boolean" },
+              "controllingWeightAnalysis": {
+                "type": ["object", "null"],
+                "properties": {
+                  "wellSupported": { "type": ["boolean", "null"] },
+                  "consistentWithRecord": { "type": ["boolean", "null"] },
+                  "controllingWeightGiven": { "type": "boolean" },
+                  "rationale": { "type": ["string", "null"] }
+                }
+              },
+              "weightRationale": { "type": "string" }
+            }
+          }
+        },
+        "opinionsPostMarch2017": {
+          "type": "array",
+          "description": "For claims filed on/after 3/27/2017 - persuasiveness evaluation per 20 CFR 404.1520c",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sourceName": { "type": "string" },
+              "sourceType": { "type": "string" },
+              "credentials": { "type": ["string", "null"] },
+              "dateOfOpinion": { "type": ["string", "null"], "format": "date" },
+              "opinionContent": { "type": "string" },
+              "persuasivenessFactors": {
+                "type": "object",
+                "properties": {
+                  "supportability": {
+                    "type": "object",
+                    "properties": {
+                      "rating": { "type": "string", "enum": ["well_supported", "somewhat_supported", "not_supported"] },
+                      "explanation": { "type": ["string", "null"] }
+                    }
+                  },
+                  "consistency": {
+                    "type": "object",
+                    "properties": {
+                      "rating": { "type": "string", "enum": ["consistent", "somewhat_consistent", "inconsistent"] },
+                      "explanation": { "type": ["string", "null"] }
+                    }
+                  },
+                  "relationship": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "examinationRelationship": { "type": ["string", "null"] },
+                      "treatmentRelationship": { "type": ["string", "null"] },
+                      "frequency": { "type": ["string", "null"] },
+                      "purpose": { "type": ["string", "null"] },
+                      "extent": { "type": ["string", "null"] }
+                    }
+                  },
+                  "specialization": { "type": ["string", "null"] },
+                  "otherFactors": { "type": ["string", "null"] }
+                }
+              },
+              "persuasivenessConclusion": {
+                "type": "string",
+                "enum": ["persuasive", "somewhat_persuasive", "not_persuasive"]
+              },
+              "articulationRationale": { "type": "string" }
+            }
+          }
+        },
+        "priorAdministrativeMedicalFindings": {
+          "type": "array",
+          "description": "PAMFs from prior levels",
+          "items": {
+            "type": "object",
+            "properties": {
+              "level": { "type": "string", "enum": ["initial", "reconsideration"] },
+              "consultantName": { "type": "string" },
+              "consultantType": { "type": "string", "enum": ["medical", "psychological"] },
+              "dateOfFinding": { "type": ["string", "null"], "format": "date" },
+              "findingContent": { "type": "string" },
+              "persuasivenessConclusion": { "type": ["string", "null"] },
+              "rationale": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+
+    "rfcAssessment": {
+      "type": ["object", "null"],
+      "description": "Residual Functional Capacity - Steps 4-5",
+      "properties": {
+        "physicalRFC": {
+          "type": ["object", "null"],
+          "properties": {
+            "exertionalLevel": {
+              "type": ["string", "null"],
+              "enum": ["sedentary", "light", "medium", "heavy", "very_heavy", "less_than_sedentary", null]
+            },
+            "exertionalLimitations": {
+              "type": "object",
+              "properties": {
+                "liftCarryOccasional": { "type": ["number", "null"] },
+                "liftCarryFrequent": { "type": ["number", "null"] },
+                "standWalkTotal": { "type": ["string", "null"] },
+                "sitTotal": { "type": ["string", "null"] },
+                "pushPull": { "type": ["string", "null"] }
+              }
+            },
+            "posturalLimitations": { "type": ["object", "null"] },
+            "manipulativeLimitations": { "type": ["object", "null"] },
+            "visualLimitations": { "type": ["object", "null"] },
+            "communicativeLimitations": { "type": ["object", "null"] },
+            "environmentalLimitations": { "type": ["object", "null"] },
+            "otherPhysicalLimitations": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "mentalRFC": {
+          "type": ["object", "null"],
+          "properties": {
+            "understandRememberApply": { "type": ["string", "null"] },
+            "concentratePersistPace": { "type": ["string", "null"] },
+            "socialInteraction": { "type": ["string", "null"] },
+            "adaptManage": { "type": ["string", "null"] },
+            "specificMentalLimitations": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "rfcNarrative": { "type": ["string", "null"] }
+      }
+    },
+
+    "vocationalAnalysis": {
+      "type": ["object", "null"],
+      "description": "Steps 4-5 vocational factors",
+      "properties": {
+        "pastRelevantWork": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "jobTitle": { "type": "string" },
+              "dotCode": { "type": ["string", "null"] },
+              "dotTitle": { "type": ["string", "null"] },
+              "exertionalLevel": { "type": ["string", "null"] },
+              "svp": { "type": ["integer", "null"] },
+              "skillLevel": { "type": ["string", "null"], "enum": ["unskilled", "semi_skilled", "skilled", null] },
+              "datesWorked": { "type": ["string", "null"] },
+              "canPerformAsPerformed": { "type": ["boolean", "null"] },
+              "canPerformAsGenerallyPerformed": { "type": ["boolean", "null"] },
+              "rationale": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "step4Determination": {
+          "type": ["object", "null"],
+          "properties": {
+            "canPerformPRW": { "type": ["boolean", "null"] },
+            "rationale": { "type": ["string", "null"] }
+          }
+        },
+        "step5Analysis": {
+          "type": ["object", "null"],
+          "properties": {
+            "gridRuleApplied": { "type": ["string", "null"], "description": "Medical-Vocational Guideline rule number (e.g., 201.14, 202.06)" },
+            "gridRuleRequirements": {
+              "type": ["object", "null"],
+              "description": "Requirements of the grid rule for disability finding",
+              "properties": {
+                "requiredExertionalLevel": { 
+                  "type": ["string", "null"], 
+                  "enum": ["sedentary", "light", "medium", "heavy", "very_heavy", null] 
+                },
+                "requiredAgeCategory": { 
+                  "type": ["string", "null"],
+                  "enum": ["younger_individual", "closely_approaching_advanced_age", "advanced_age", "closely_approaching_retirement", null]
+                },
+                "requiredEducation": { 
+                  "type": ["string", "null"],
+                  "enum": ["illiterate_or_unable_to_communicate", "limited_or_less", "limited", "high_school_or_above", "does_not_provide_direct_entry", null]
+                },
+                "requiredWorkExperience": { 
+                  "type": ["string", "null"],
+                  "enum": ["unskilled_or_none", "skilled_or_semiskilled_not_transferable", "skilled_or_semiskilled_transferable", null]
+                },
+                "ruleDirectsDisability": { "type": ["boolean", "null"] },
+                "ruleText": { "type": ["string", "null"], "description": "Brief statement of what the rule requires for a disability finding" }
+              }
+            },
+            "claimantMeetsGridRequirements": {
+              "type": ["object", "null"],
+              "description": "Whether claimant meets each grid rule requirement",
+              "properties": {
+                "meetsExertionalRequirement": { "type": ["boolean", "null"] },
+                "meetsAgeRequirement": { "type": ["boolean", "null"] },
+                "meetsEducationRequirement": { "type": ["boolean", "null"] },
+                "meetsWorkExperienceRequirement": { "type": ["boolean", "null"] },
+                "meetsAllRequirements": { "type": ["boolean", "null"] },
+                "requirementsNotMet": { 
+                  "type": "array", 
+                  "items": { "type": "string" },
+                  "description": "List of requirements claimant fails to meet"
+                }
+              }
+            },
+            "gridRuleDirects": { "type": ["string", "null"], "enum": ["disabled", "not_disabled", "framework_only", null] },
+            "frameworkAnalysis": {
+              "type": ["object", "null"],
+              "description": "When grid used as framework only due to non-exertional limitations",
+              "properties": {
+                "nonExertionalLimitationsPresent": { "type": "boolean" },
+                "nonExertionalLimitations": { "type": "array", "items": { "type": "string" } },
+                "erosionOfOccupationalBase": { "type": ["string", "null"] },
+                "vocationalExpertUsed": { "type": ["boolean", "null"] }
+              }
+            },
+            "transferableSkills": {
+              "type": ["object", "null"],
+              "properties": {
+                "hasTransferableSkills": { "type": ["boolean", "null"] },
+                "skills": { "type": "array", "items": { "type": "string" } },
+                "transferabilityAnalysis": { "type": ["string", "null"] }
+              }
+            },
+            "otherWorkExists": { "type": ["boolean", "null"] },
+            "occupationalBase": { "type": ["string", "null"], "description": "Erosion of occupational base analysis" },
+            "rationale": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+
+    "specialIssues": {
+      "type": ["object", "null"],
+      "properties": {
+        "daaAnalysis": {
+          "type": ["object", "null"],
+          "description": "Drug Addiction and Alcoholism materiality per POMS DI 26515.001 B.9",
+          "properties": {
+            "substanceUsePresent": { "type": "boolean" },
+            "substancesIdentified": { "type": "array", "items": { "type": "string" } },
+            "contributingToDisability": { "type": ["boolean", "null"] },
+            "materialityDetermination": {
+              "type": ["string", "null"],
+              "enum": ["material", "not_material", "not_applicable", null]
+            },
+            "limitationsWithoutDAA": { "type": ["string", "null"] },
+            "rationale": { "type": ["string", "null"] }
+          }
+        },
+        "failureToFollowTreatment": {
+          "type": ["object", "null"],
+          "description": "Per POMS DI 26515.001 B.10",
+          "properties": {
+            "considered": { "type": "boolean" },
+            "treatmentNotFollowed": { "type": ["string", "null"] },
+            "goodCauseExists": { "type": ["boolean", "null"] },
+            "goodCauseReason": { "type": ["string", "null"] },
+            "precludesBenefits": { "type": ["boolean", "null"] },
+            "rationale": { "type": ["string", "null"] }
+          }
+        },
+        "claimantCooperation": {
+          "type": ["object", "null"],
+          "description": "Per POMS DI 26515.001 B.11",
+          "properties": {
+            "failedToCooperate": { "type": "boolean" },
+            "unsuccessfulRequests": { "type": "array", "items": { "type": "string" } },
+            "reasonableEffortMade": { "type": ["boolean", "null"] },
+            "determinationBasedOnAvailableEvidence": { "type": ["boolean", "null"] }
+          }
+        }
+      }
+    },
+
+    "determination": {
+      "type": "object",
+      "required": ["determinationDate", "determinationOutcome"],
+      "description": "Final determination per SSA-831",
+      "properties": {
+        "determinationDate": { "type": "string", "format": "date" },
+        "determinationOutcome": {
+          "type": "string",
+          "enum": ["disabled", "not_disabled", "closed_period"]
+        },
+        "denialBasis": {
+          "type": ["string", "null"],
+          "enum": [
+            "engaging_in_sga",
+            "no_severe_impairment",
+            "does_not_meet_duration",
+            "does_not_meet_or_equal_listing",
+            "can_perform_prw",
+            "can_perform_other_work",
+            "failure_to_cooperate",
+            "failure_to_follow_treatment",
+            "daa_material",
+            "technical_denial",
+            null
+          ]
+        },
+        "allowanceBasis": {
+          "type": ["string", "null"],
+          "enum": [
+            "meets_listing",
+            "equals_listing",
+            "functionally_equals_listing",
+            "grid_rule_directs",
+            "vocational_factors",
+            null
+          ]
+        },
+        "sequentialEvaluationStep": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Step at which determination was made"
+        },
+        "disabilityBeganDate": { "type": ["string", "null"], "format": "date" },
+        "disabilityEndedDate": { 
+          "type": ["string", "null"], 
+          "format": "date",
+          "description": "For closed period determinations"
+        },
+        "basisCode": { "type": ["string", "null"], "description": "SSA-831 Item 35" },
+        "diagnosisCodes": {
+          "type": "object",
+          "description": "SSA-831 Items 16A and 16B",
+          "properties": {
+            "primary": {
+              "type": "object",
+              "properties": {
+                "bodySystemCode": { "$ref": "#/definitions/BodySystemCode" },
+                "bodySystemDescription": { "type": ["string", "null"] },
+                "impairmentCode": { "type": ["string", "null"], "description": "Specific impairment code within body system" },
+                "icdCode": { "type": ["string", "null"] },
+                "description": { "type": ["string", "null"] }
+              }
+            },
+            "secondary": {
+              "type": ["object", "null"],
+              "properties": {
+                "bodySystemCode": { "$ref": "#/definitions/BodySystemCode" },
+                "bodySystemDescription": { "type": ["string", "null"] },
+                "impairmentCode": { "type": ["string", "null"] },
+                "icdCode": { "type": ["string", "null"] },
+                "description": { "type": ["string", "null"] }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "adjudicators": {
+      "type": "object",
+      "description": "DDS personnel per SSA-831 Items 30-33",
+      "properties": {
+        "ddsCode": { "type": ["string", "null"], "description": "DDS office code" },
+        "disabilityExaminer": {
+          "type": "object",
+          "properties": {
+            "name": { "type": ["string", "null"] },
+            "code": { "type": ["string", "null"], "description": "Examiner ID code" },
+            "signatureDate": { "type": ["string", "null"], "format": "date" }
+          }
+        },
+        "medicalConsultant": {
+          "type": ["object", "null"],
+          "properties": {
+            "name": { "type": ["string", "null"] },
+            "code": { "type": ["string", "null"], "description": "Consultant ID code" },
+            "credentials": { "type": ["string", "null"] },
+            "specialtyCode": { "type": ["string", "null"] },
+            "signatureDate": { "type": ["string", "null"], "format": "date" }
+          }
+        },
+        "psychologicalConsultant": {
+          "type": ["object", "null"],
+          "properties": {
+            "name": { "type": ["string", "null"] },
+            "code": { "type": ["string", "null"], "description": "Consultant ID code" },
+            "credentials": { "type": ["string", "null"] },
+            "specialtyCode": { "type": ["string", "null"] },
+            "signatureDate": { "type": ["string", "null"], "format": "date" }
+          }
+        },
+        "ssaRepresentativeCodes": {
+          "type": ["object", "null"],
+          "description": "SSA-831 Item 37",
+          "properties": {
+            "ssaCode": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+
+    "rationale": {
+      "type": "object",
+      "description": "Complete rationale narrative",
+      "properties": {
+        "fullRationale": { "type": ["string", "null"] },
+        "findingsOfFact": { "type": "array", "items": { "type": "string" } },
+        "evidenceAnalysis": { "type": ["string", "null"] },
+        "conclusionsOfLaw": { "type": ["string", "null"] }
+      }
+    }
+  },
+
+  "definitions": {
+    "BodySystemCode": {
+      "type": "string",
+      "description": "SSA Body System Codes per Blue Book listings structure",
+      "enum": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "05",
+        "06",
+        "07",
+        "08",
+        "09",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14"
+      ],
+      "enumDescriptions": {
+        "01": "Musculoskeletal Disorders",
+        "02": "Special Senses and Speech",
+        "03": "Respiratory Disorders",
+        "04": "Cardiovascular System",
+        "05": "Digestive System",
+        "06": "Genitourinary Disorders",
+        "07": "Hematological Disorders",
+        "08": "Skin Disorders",
+        "09": "Endocrine Disorders",
+        "10": "Congenital Disorders that Affect Multiple Body Systems",
+        "11": "Neurological Disorders",
+        "12": "Mental Disorders",
+        "13": "Cancer (Malignant Neoplastic Diseases)",
+        "14": "Immune System Disorders"
+      }
+    },
+    "BodySystemCodeWithDescription": {
+      "type": "object",
+      "properties": {
+        "code": { "$ref": "#/definitions/BodySystemCode" },
+        "description": {
+          "type": "string",
+          "enum": [
+            "Musculoskeletal Disorders",
+            "Special Senses and Speech",
+            "Respiratory Disorders",
+            "Cardiovascular System",
+            "Digestive System",
+            "Genitourinary Disorders",
+            "Hematological Disorders",
+            "Skin Disorders",
+            "Endocrine Disorders",
+            "Congenital Disorders that Affect Multiple Body Systems",
+            "Neurological Disorders",
+            "Mental Disorders",
+            "Cancer (Malignant Neoplastic Diseases)",
+            "Immune System Disorders"
+          ]
+        }
+      }
+    },
+    "Impairment": {
+      "type": "object",
+      "properties": {
+        "condition": { "type": "string" },
+        "icdCode": { "type": ["string", "null"] },
+        "bodySystemCode": { "$ref": "#/definitions/BodySystemCode" },
+        "bodySystemDescription": { 
+          "type": ["string", "null"],
+          "enum": [
+            "Musculoskeletal Disorders",
+            "Special Senses and Speech",
+            "Respiratory Disorders",
+            "Cardiovascular System",
+            "Digestive System",
+            "Genitourinary Disorders",
+            "Hematological Disorders",
+            "Skin Disorders",
+            "Endocrine Disorders",
+            "Congenital Disorders that Affect Multiple Body Systems",
+            "Neurological Disorders",
+            "Mental Disorders",
+            "Cancer (Malignant Neoplastic Diseases)",
+            "Immune System Disorders",
+            null
+          ]
+        },
+        "impairmentCode": { "type": ["string", "null"], "description": "Specific impairment code within body system (e.g., 01.04 for Disorders of the Spine)" },
+        "listingNumber": { "type": ["string", "null"], "description": "Blue Book listing number if applicable (e.g., 1.15, 12.04)" },
+        "isMDI": { "type": "boolean", "description": "Is Medically Determinable Impairment" },
+        "isSevere": { "type": ["boolean", "null"] },
+        "severityRationale": { "type": ["string", "null"] },
+        "meetsDuration": { "type": ["boolean", "null"] }
+      }
+    },
+    "ChildDomainRating": {
+      "type": ["object", "null"],
+      "properties": {
+        "rating": {
+          "type": ["string", "null"],
+          "enum": ["no_limitation", "less_than_marked", "marked", "extreme", null]
+        },
+        "rationale": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
